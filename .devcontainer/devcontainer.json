@@ -1,0 +1,37 @@
+{
+  "name": "blunderlive",
+  "dockerComposeFile": [
+    "../compose.yaml",
+    "docker-compose.devcontainer.yml"
+  ],
+  "service": "game",
+  "workspaceFolder": "/workspaces/blunderlive",
+  "shutdownAction": "stopCompose",
+  "runServices": ["redis", "game"],
+  "remoteUser": "appuser",
+  "updateRemoteUserUID": true,
+  "forwardPorts": [8005, 6379],
+  "postCreateCommand": "cd /workspaces/blunderlive/services/game && pip install -r requirements.txt",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": [
+          "/workspaces/blunderlive/services/game/tests"
+        ],
+        "python.testing.cwd": "/workspaces/blunderlive/services/game",
+        "python.analysis.extraPaths": [
+          "/workspaces/blunderlive/services/game"
+        ]
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "github.vscode-github-actions"
+      ]
+    }
+  }
+}

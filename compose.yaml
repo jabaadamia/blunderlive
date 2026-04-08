@@ -1,0 +1,43 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  game:
+    build:
+      context: .
+      dockerfile: services/game/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_ENV: ${APP_ENV}
+      APP_HOST: ${APP_HOST}
+      APP_PORT: ${APP_PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      REDIS_URL: ${REDIS_URL}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    ports:
+      - "8005:8005"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis_data:

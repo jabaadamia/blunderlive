@@ -1,0 +1,12 @@
+services:
+  game:
+    volumes:
+      - .:/workspaces/blunderlive:cached
+    working_dir: /workspaces/blunderlive/services/game
+    command: sleep infinity
+    ports:
+      - "8005:8005"
+
+  redis:
+    ports:
+      - "6379:6379"
