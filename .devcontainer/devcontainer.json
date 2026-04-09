@@ -29,7 +29,6 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "charliermarsh.ruff",
         "ms-azuretools.vscode-docker",
         "github.vscode-github-actions"
       ]

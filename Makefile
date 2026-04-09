@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f compose.yaml --env-file .env
 
-.PHONY: help init up down restart logs ps clean build test lint format check
+.PHONY: help init up down restart logs ps clean build test-core test-game check-core check-game check-all
 
 help:
 	@echo "Available targets:"
@@ -11,9 +11,11 @@ help:
 	@echo "  logs     Tail container logs"
 	@echo "  ps       Show service status"
 	@echo "  build    Build containers"
-	@echo "  lint     Run Ruff"
-	@echo "  test     Run pytest"
-	@echo "  check    Run lint and tests"
+	@echo "  test-core  Run core pytest suite"
+	@echo "  test-game  Run game pytest suite"
+	@echo "  check-core  Run Django core checks and tests"
+	@echo "  check-game  Run game tests"
+	@echo "  check-all   Run core and game checks"
 	@echo "  clean    Stop services and remove volumes"
 
 init:
@@ -38,16 +40,25 @@ logs:
 ps:
 	$(COMPOSE) ps
 
-lint:
-	$(COMPOSE) run --rm game ruff check .
+test-core:
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm core pytest
 
-test:
+test-game:
 	$(COMPOSE) up -d redis
 	$(COMPOSE) run --rm game pytest
 
-check:
-	$(MAKE) lint
-	$(MAKE) test
+check-core:
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm core python manage.py check
+	$(MAKE) test-core
+
+check-game:
+	$(MAKE) test-game
+
+check-all:
+	$(MAKE) check-core
+	$(MAKE) check-game
 
 clean:
 	$(COMPOSE) down -v

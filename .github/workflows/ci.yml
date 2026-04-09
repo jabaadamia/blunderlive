@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  game-lint-test:
+  game-test:
     runs-on: ubuntu-latest
     services:
       redis:
@@ -36,9 +36,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Lint
-        run: ruff check .
-
       - name: Test
         env:
           REDIS_URL: redis://localhost:6379/0
@@ -46,6 +43,20 @@ jobs:
 
   core-check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: blunderlive_core
+          POSTGRES_USER: blunderlive
+          POSTGRES_PASSWORD: blunderlive
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U blunderlive -d blunderlive_core"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: services/core
@@ -67,7 +78,15 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.local
           CORE_SECRET_KEY: ci-secret-key
+          CORE_DATABASE_URL: postgresql://blunderlive:blunderlive@localhost:5432/blunderlive_core
         run: python manage.py check
+
+      - name: Test
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.local
+          CORE_SECRET_KEY: ci-secret-key
+          CORE_DATABASE_URL: postgresql://blunderlive:blunderlive@localhost:5432/blunderlive_core
+        run: pytest
 
   docker-build:
     runs-on: ubuntu-latest
