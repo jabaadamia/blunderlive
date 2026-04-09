@@ -1,11 +1,13 @@
 # BlunderLive
 
-Minimal production-minded starting point for the chess game service.
+Minimal production-minded starting point for the chess platform backend.
 
 ## Current scope
 
-- FastAPI service in `services/game`
-- Redis for local infrastructure
+- `services/game`: FastAPI service
+- `services/core`: Django + DRF service
+- Redis for live-state infrastructure
+- PostgreSQL for the core service
 - Docker Compose for local development
 - GitHub Actions for CI and container publishing
 
@@ -14,7 +16,8 @@ Minimal production-minded starting point for the chess game service.
 1. Copy `.env.example` to `.env`
 2. Run `make build`
 3. Run `make up`
-4. Open `http://localhost:8005/health`
+4. Open `http://localhost:8000/health/`
+5. Open `http://localhost:8005/health`
 
 ## VS Code devcontainer
 
@@ -37,7 +40,8 @@ The devcontainer uses the existing `game` and `redis` services, mounts the full 
 
 ## Next steps
 
+- Add real auth models and flows in `services/core/auth`
+- Add real profile models in `services/core/users`
 - Add config validation for future auth and matchmaking settings
-- Add Redis-backed repository layer
-- Add WebSocket skeleton
-- Add matchmaking and game domain logic
+- Add Redis-backed repository layer in `services/game`
+- Add WebSocket skeleton and matchmaking logic

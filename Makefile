@@ -5,7 +5,7 @@ COMPOSE := docker compose -f compose.yaml --env-file .env
 help:
 	@echo "Available targets:"
 	@echo "  init     Copy .env.example to .env if missing"
-	@echo "  up       Start game service and redis"
+	@echo "  up       Start local services"
 	@echo "  down     Stop running containers"
 	@echo "  restart  Restart containers"
 	@echo "  logs     Tail container logs"

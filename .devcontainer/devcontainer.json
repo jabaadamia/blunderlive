@@ -7,11 +7,11 @@
   "service": "game",
   "workspaceFolder": "/workspaces/blunderlive",
   "shutdownAction": "stopCompose",
-  "runServices": ["redis", "game"],
+  "runServices": ["postgres", "redis", "core", "game"],
   "remoteUser": "appuser",
   "updateRemoteUserUID": true,
-  "forwardPorts": [8005, 6379],
-  "postCreateCommand": "cd /workspaces/blunderlive/services/game && pip install -r requirements.txt",
+  "forwardPorts": [8000, 8005, 6379],
+  "postCreateCommand": "pip install -r /workspaces/blunderlive/services/game/requirements.txt && pip install -r /workspaces/blunderlive/services/core/requirements.txt",
   "customizations": {
     "vscode": {
       "settings": {
@@ -22,7 +22,8 @@
         ],
         "python.testing.cwd": "/workspaces/blunderlive/services/game",
         "python.analysis.extraPaths": [
-          "/workspaces/blunderlive/services/game"
+          "/workspaces/blunderlive/services/game",
+          "/workspaces/blunderlive/services/core"
         ]
       },
       "extensions": [
