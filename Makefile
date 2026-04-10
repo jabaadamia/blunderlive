@@ -1,6 +1,10 @@
 COMPOSE := docker compose -f compose.yaml --env-file .env
+CORE_APP_VOLUME := -v $(CURDIR)/services/core:/app
+GAME_APP_VOLUME := -v $(CURDIR)/services/game:/app
+POSTGRES_USER := $(shell grep ^POSTGRES_USER .env | cut -d= -f2)
+POSTGRES_DB := $(shell grep ^POSTGRES_DB .env | cut -d= -f2)
 
-.PHONY: help init up down restart logs ps clean build test-core test-game check-core check-game check-all
+.PHONY: help init up down restart logs ps clean build makemigrations-core migrate-core test-core test-game check-core check-game check-all
 
 help:
 	@echo "Available targets:"
@@ -11,6 +15,9 @@ help:
 	@echo "  logs     Tail container logs"
 	@echo "  ps       Show service status"
 	@echo "  build    Build containers"
+	@echo "  makemigrations-core  Create Django core migrations"
+	@echo "  migrate-core  Run Django core migrations"
+	@echo "  postgres-shell  Open a psql shell to the postgres container"
 	@echo "  test-core  Run core pytest suite"
 	@echo "  test-game  Run game pytest suite"
 	@echo "  check-core  Run Django core checks and tests"
@@ -40,17 +47,29 @@ logs:
 ps:
 	$(COMPOSE) ps
 
+makemigrations-core:
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm $(CORE_APP_VOLUME) core python manage.py makemigrations
+
+migrate-core:
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) run --rm $(CORE_APP_VOLUME) core python manage.py migrate
+
+postgres-shell:
+	$(COMPOSE) up -d postgres
+	$(COMPOSE) exec postgres psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+
 test-core:
 	$(COMPOSE) up -d postgres
-	$(COMPOSE) run --rm core pytest
+	$(COMPOSE) run --rm $(CORE_APP_VOLUME) core pytest
 
 test-game:
 	$(COMPOSE) up -d redis
-	$(COMPOSE) run --rm game pytest
+	$(COMPOSE) run --rm $(GAME_APP_VOLUME) game pytest
 
 check-core:
 	$(COMPOSE) up -d postgres
-	$(COMPOSE) run --rm core python manage.py check
+	$(COMPOSE) run --rm $(CORE_APP_VOLUME) core python manage.py check
 	$(MAKE) test-core
 
 check-game:
