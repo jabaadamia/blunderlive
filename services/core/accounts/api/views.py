@@ -1,10 +1,10 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import AuthStatusSerializer
+from .serializers import AccountStatusSerializer
 
 
-class AuthStatusView(APIView):
+class AccountStatusView(APIView):
     def get(self, request):
-        serializer = AuthStatusSerializer({"service": "auth", "status": "ready"})
+        serializer = AccountStatusSerializer({"service": "accounts", "status": "ready"})
         return Response(serializer.data)

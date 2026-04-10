@@ -1,7 +1,7 @@
 from django.urls import path
 
-from .views import AuthStatusView
+from .views import AccountStatusView
 
 urlpatterns = [
-    path("status/", AuthStatusView.as_view(), name="auth-status"),
+    path("status/", AccountStatusView.as_view(), name="account-status"),
 ]
