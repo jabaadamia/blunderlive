@@ -1,5 +1,10 @@
-from django.http import JsonResponse
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import api_view
+from rest_framework.request import Request
+from rest_framework.response import Response
 
 
-def health(_: object) -> JsonResponse:
-    return JsonResponse({"status": "ok", "service": "core"})
+@extend_schema(tags=["health"], summary="Core service liveness")
+@api_view(["GET"])
+def health(request: Request) -> Response:
+    return Response({"status": "ok", "service": "core"})
