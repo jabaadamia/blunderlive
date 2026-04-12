@@ -92,6 +92,8 @@ services:
       NEXT_PUBLIC_GAME_API_BASE_URL: ${NEXT_PUBLIC_GAME_API_BASE_URL:-http://localhost:8005}
       INTERNAL_CORE_URL: ${INTERNAL_CORE_URL:-http://core:8000}
       INTERNAL_GAME_URL: ${INTERNAL_GAME_URL:-http://game:8005}
+    # Override to use dev server locally; remove this command in production
+    command: ["node_modules/.bin/next", "dev", "-H", "0.0.0.0", "-p", "3000"]
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

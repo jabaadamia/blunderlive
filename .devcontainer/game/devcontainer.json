@@ -1,36 +1,34 @@
 {
-  "name": "blunderlive",
+  "name": "blunderlive-game",
   "dockerComposeFile": [
-    "../compose.yaml",
+    "../../compose.yaml",
     "docker-compose.devcontainer.yml"
   ],
   "service": "game",
   "workspaceFolder": "/workspaces/blunderlive",
   "shutdownAction": "stopCompose",
-  "runServices": ["postgres", "redis", "core", "game"],
+  "runServices": ["redis", "game"],
   "remoteUser": "appuser",
   "updateRemoteUserUID": true,
-  "forwardPorts": [8000, 8005, 6379],
-  "postCreateCommand": "pip install -r /workspaces/blunderlive/services/game/requirements.txt && pip install -r /workspaces/blunderlive/services/core/requirements.txt",
+  "forwardPorts": [8005],
   "customizations": {
     "vscode": {
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.typeCheckingMode": "basic",
         "python.testing.pytestEnabled": true,
         "python.testing.pytestArgs": [
           "/workspaces/blunderlive/services/game/tests"
         ],
         "python.testing.cwd": "/workspaces/blunderlive/services/game",
         "python.analysis.extraPaths": [
-          "/workspaces/blunderlive/services/game",
-          "/workspaces/blunderlive/services/core"
+          "/workspaces/blunderlive/services/game"
         ]
       },
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-azuretools.vscode-docker",
-        "github.vscode-github-actions"
+        "ms-azuretools.vscode-docker"
       ]
     }
   }

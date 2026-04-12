@@ -1,0 +1,5 @@
+services:
+  core:
+    volumes:
+      - ../../:/workspaces/blunderlive:cached
+    working_dir: /workspaces/blunderlive/services/core
