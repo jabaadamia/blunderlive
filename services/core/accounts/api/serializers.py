@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
 
-class AccountStatusSerializer(serializers.Serializer):
+class AuthStatusSerializer(serializers.Serializer):
     service = serializers.CharField()
     status = serializers.CharField()
