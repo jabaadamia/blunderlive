@@ -5,7 +5,7 @@ ENV PIP_NO_CACHE_DIR=1
 
 RUN useradd --create-home --shell /bin/bash appuser
 
-WORKDIR /workspaces/blunderlive/services/core
+WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl git \
@@ -17,7 +17,7 @@ RUN pip install --upgrade pip \
 
 COPY services/core .
 
-RUN chown -R appuser:appuser /workspaces/blunderlive
+RUN chown -R appuser:appuser /app
 
 USER appuser
 EXPOSE 8000
