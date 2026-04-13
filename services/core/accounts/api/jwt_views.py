@@ -11,6 +11,8 @@ from rest_framework import status
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema_view, extend_schema
 
+from accounts.utils import set_refresh_cookie
+
 
 @extend_schema_view(
     post=extend_schema(
@@ -28,14 +30,7 @@ class LoginView(BaseTokenObtainPairView):
         res = Response({"access": access}, status=status.HTTP_200_OK)
 
         if refresh:
-            res.set_cookie(
-                key="refresh",
-                value=refresh,
-                httponly=True,
-                secure=True,
-                samesite="Lax",
-                path="/api/auth/",
-            )
+            set_refresh_cookie(res, refresh) 
 
         return res
 
@@ -80,13 +75,6 @@ class RefreshView(BaseTokenRefreshView):
 
         if "refresh" in response.data: # type: ignore
             new_refresh = response.data.pop("refresh") # type: ignore
-            response.set_cookie(
-                key="refresh",
-                value=new_refresh,
-                httponly=True,
-                secure=True,
-                samesite="Lax",
-                path="/api/auth/",
-            )
+            set_refresh_cookie(response, new_refresh)
 
         return response
