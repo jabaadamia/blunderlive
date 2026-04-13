@@ -1,0 +1,15 @@
+services:
+  core:
+    volumes:
+      - ./services/core:/app
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  game:
+    volumes:
+      - ./services/game:/app
+
+  frontend:
+    volumes:
+      - ./frontend:/app

@@ -1,9 +1,15 @@
-COMPOSE := docker compose -f compose.yaml --env-file .env
 CORE_APP_VOLUME := -v $(CURDIR)/services/core:/app
 GAME_APP_VOLUME := -v $(CURDIR)/services/game:/app
 FRONTEND_APP_VOLUME := -v $(CURDIR)/frontend:/app
 POSTGRES_USER := $(shell grep ^POSTGRES_USER .env | cut -d= -f2)
 POSTGRES_DB := $(shell grep ^POSTGRES_DB .env | cut -d= -f2)
+COMPOSE_BASE := docker compose -f compose.yaml --env-file .env
+ENV ?= dev
+ifeq ($(ENV),dev)
+	COMPOSE := $(COMPOSE_BASE) -f compose.override.dev.yaml
+else
+	COMPOSE := $(COMPOSE_BASE) -f compose.override.prod.yaml
+endif
 
 .PHONY: help init up down restart logs ps clean build makemigrations-core migrate-core test-core test-game test-frontend lint-frontend build-frontend check-core check-game check-frontend check-all
 
