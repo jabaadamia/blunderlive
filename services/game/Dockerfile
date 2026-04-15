@@ -1,24 +1,35 @@
-FROM python:3.12-slim
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PIP_NO_CACHE_DIR=1
+FROM python:3.12-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 RUN useradd --create-home --shell /bin/bash appuser
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl git \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY services/game/requirements.txt .
+COPY services/game/requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install -r /tmp/requirements.txt
 
-COPY services/game .
+FROM base AS dev
 
+COPY services/game /app
 RUN chown -R appuser:appuser /app
 
 USER appuser
+
 EXPOSE 8005
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005", "--reload"]
+
+FROM base AS runtime
+
+COPY services/game /app
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8005
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]

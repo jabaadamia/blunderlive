@@ -2,46 +2,60 @@
 
 Minimal production-minded starting point for the chess platform backend.
 
-## Current scope
+## Services
 
-- `services/game`: FastAPI service
+- `frontend`: Next.js app
 - `services/core`: Django + DRF service
-- Redis for live-state infrastructure
-- PostgreSQL for the core service
-- Docker Compose for local development
-- GitHub Actions for CI and container publishing
+- `services/game`: FastAPI service
+- `postgres`: PostgreSQL database
+- `redis`: Redis
+- `nginx`: public entrypoint and static-file server
 
-## Local setup
+## Environment model
 
-1. Copy `.env.example` to `.env`
-2. Run `make build`
-3. Run `make up`
-4. Open `http://localhost:8000/health/`
-5. Open `http://localhost:8005/health`
+- `compose.yaml` contains shared service definitions and production-safe defaults
+- `compose.override.dev.yaml` adds bind mounts, dev servers, and host-exposed app ports
+- `compose.override.prod.yaml` keeps runtime targets and production settings explicit
+- Use `ENV=dev` or `ENV=prod` with `make`, or the shortcut targets below
 
-## VS Code devcontainer
+## First-time setup
 
-1. Open the repo root in VS Code
-2. Run `Dev Containers: Reopen in Container`
-3. Wait for the container build and dependency install to finish
-4. Use the integrated terminal inside the container from `/workspaces/blunderlive/services/game`
+1. `make init`
+2. Update `.env`
+3. For production values, at minimum set `CORE_SECRET_KEY`, `CORE_DEBUG=False`, and the real host/origin variables
 
-The devcontainer uses the existing `game` and `redis` services, mounts the full repo into the container, and keeps Git available inside the container.
+## Run development
+
+1. `make up-dev`
+2. Open [http://localhost:8080](http://localhost:8080)
+3. Optional direct debug ports:
+   - frontend: `http://localhost:3000`
+   - core: `http://localhost:8000/health/`
+   - game: `http://localhost:8005/health`
+
+Development uses live-reload containers for Django, FastAPI, and Next.js, while nginx still sits in front so browser traffic matches the reverse-proxy shape.
+
+## Run production-like stack
+
+1. Review `.env` and switch it to production-safe values
+2. `make up-prod`
+3. Open [http://localhost:8080](http://localhost:8080)
+
+`make up-prod` runs Django migrations and `collectstatic` before bringing the full stack up. In production mode, nginx serves Django static assets directly from the shared volume, and the frontend runs from a standalone Next.js build instead of the dev server.
 
 ## Useful commands
 
-- `make init`
-- `make build`
-- `make up`
-- `make logs`
-- `make ps`
-- `make lint`
-- `make test`
+- `make build-dev`
+- `make build-prod`
+- `make logs ENV=dev`
+- `make logs ENV=prod`
+- `make ps ENV=prod`
+- `make bootstrap ENV=prod`
+- `make migrate-core ENV=prod`
+- `make collectstatic-core ENV=prod`
+- `make check-all ENV=dev`
 
-## Next steps
+## Notes
 
-- Add real auth models and flows in `services/core/auth`
-- Add real profile models in `services/core/users`
-- Add config validation for future auth and matchmaking settings
-- Add Redis-backed repository layer in `services/game`
-- Add WebSocket skeleton and matchmaking logic
+- Access the app through nginx for both environments so the frontend can use same-origin `/api` and `/api/game` URLs
+- PostgreSQL and Redis are exposed to the host only in development

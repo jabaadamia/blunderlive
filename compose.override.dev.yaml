@@ -1,15 +1,85 @@
 services:
+  postgres:
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
   core:
+    build:
+      context: .
+      dockerfile: services/core/Dockerfile
+      target: dev
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      CORE_DEBUG: ${CORE_DEBUG:-True}
+    command:
+      - sh
+      - -c
+      - python manage.py migrate && python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "${CORE_PORT:-8000}:8000"
     volumes:
       - ./services/core:/app
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+      - core_static:/app/staticfiles
+      - core_media:/app/media
 
   game:
+    build:
+      context: .
+      dockerfile: services/game/Dockerfile
+      target: dev
+    environment:
+      APP_ENV: development
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8005"
+      - --reload
+    ports:
+      - "${GAME_PORT:-8005}:8005"
     volumes:
       - ./services/game:/app
 
   frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: dev
+      args:
+        NEXT_PUBLIC_CORE_API_BASE_URL: ${NEXT_PUBLIC_CORE_API_BASE_URL:-/api}
+        NEXT_PUBLIC_GAME_API_BASE_URL: ${NEXT_PUBLIC_GAME_API_BASE_URL:-/api/game}
+        INTERNAL_CORE_URL: ${INTERNAL_CORE_URL:-http://core:8000}
+        INTERNAL_GAME_URL: ${INTERNAL_GAME_URL:-http://game:8005}
+    environment:
+      NODE_ENV: development
+    command:
+      - npm
+      - run
+      - dev
+      - --
+      - -H
+      - 0.0.0.0
+      - -p
+      - "3000"
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next_cache:/app/.next
+
+  nginx:
+    volumes:
+      - ./infra/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - core_static:/var/www/core/static:ro
+      - core_media:/var/www/core/media:ro
+
+volumes:
+  frontend_node_modules:
+  frontend_next_cache:

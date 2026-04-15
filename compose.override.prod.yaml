@@ -1,4 +1,28 @@
 services:
-  core: {}
-  game: {}
-  frontend: {}
+  core:
+    build:
+      context: .
+      dockerfile: services/core/Dockerfile
+      target: runtime
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      CORE_DEBUG: "False"
+
+  game:
+    build:
+      context: .
+      dockerfile: services/game/Dockerfile
+      target: runtime
+    environment:
+      APP_ENV: production
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_CORE_API_BASE_URL: ${NEXT_PUBLIC_CORE_API_BASE_URL:-/api}
+        NEXT_PUBLIC_GAME_API_BASE_URL: ${NEXT_PUBLIC_GAME_API_BASE_URL:-/api/game}
+        INTERNAL_CORE_URL: ${INTERNAL_CORE_URL:-http://core:8000}
+        INTERNAL_GAME_URL: ${INTERNAL_GAME_URL:-http://game:8005}
