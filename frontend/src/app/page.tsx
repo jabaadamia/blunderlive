@@ -12,10 +12,16 @@ async function getHealth(url: string): Promise<HealthResult> {
   }
 }
 
+const INTERNAL_CORE_URL =
+  process.env.INTERNAL_CORE_URL ?? "http://core:8000";
+
+const INTERNAL_GAME_URL =
+  process.env.INTERNAL_GAME_URL ?? "http://game:8005";
+
 export default async function Home() {
   const [coreHealth, gameHealth] = await Promise.all([
-    getHealth("http://nginx/api/core/health/"),
-    getHealth("http://nginx/api/game/health"),
+    getHealth(`${INTERNAL_CORE_URL}/health/`),
+    getHealth(`${INTERNAL_GAME_URL}/health`),
   ]);
 
   return (
@@ -26,12 +32,16 @@ export default async function Home() {
         <li>Core API: {CORE_API_BASE}</li>
         <li>Game API: {GAME_API_BASE}</li>
       </ul>
+      <ul>
+        <li>Core internal URL: {INTERNAL_CORE_URL}</li>
+        <li>Game internal URL: {INTERNAL_GAME_URL}</li>
+      </ul>
       <p>
-        Core health via Nginx: <strong>{coreHealth.ok ? "OK" : "FAILED"}</strong>
+        Core health: <strong>{coreHealth.ok ? "OK" : "FAILED"}</strong>
       </p>
       <pre>{coreHealth.body}</pre>
       <p>
-        Game health via Nginx: <strong>{gameHealth.ok ? "OK" : "FAILED"}</strong>
+        Game health: <strong>{gameHealth.ok ? "OK" : "FAILED"}</strong>
       </p>
       <pre>{gameHealth.body}</pre>
     </main>
