@@ -48,8 +48,9 @@ data/
 pg_data/
 redis_data/
 
-# Django collected static (local `collectstatic`)
+# Django collected static and media files
 services/core/staticfiles/
+services/core/media/
 
 # Python service artifacts
 .pytest_cache/
