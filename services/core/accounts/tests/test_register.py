@@ -1,5 +1,6 @@
 import pytest
 from django.urls import reverse
+from ratings.models import Rating, RatingCategory
 from users.models import User
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
@@ -96,3 +97,15 @@ class TestRegisterView:
 
         assert response.status_code == 400
         assert "email" in response.data
+
+    def test_register_creates_default_ratings_for_user(self, client, register_payload):
+        response = client.post(REGISTER_URL, register_payload)
+
+        assert response.status_code == 201
+
+        user = User.objects.get(email=register_payload["email"])
+        created_categories = set(
+            Rating.objects.filter(user=user).values_list("category", flat=True)
+        )
+
+        assert created_categories == set(RatingCategory.values)
