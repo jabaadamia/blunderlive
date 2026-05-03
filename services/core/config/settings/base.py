@@ -126,6 +126,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "health", "description": "Liveness and readiness style checks."},
         {"name": "auth", "description": "Authentication-related endpoints."},
         {"name": "users", "description": "User-related endpoints."},
+        {"name": "ratings", "description": "User ratings and rating history."},
     ],
     "APPEND_COMPONENTS": {
         "securitySchemes": {
