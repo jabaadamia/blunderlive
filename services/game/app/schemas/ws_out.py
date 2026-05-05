@@ -22,6 +22,12 @@ class MoveRejectedMessage(BaseModel):
     type: Literal["move_rejected"] = "move_rejected"
     reason: str
 
+class DrawDeclinedMessage(BaseModel):
+    type: Literal["draw_declined"] = "draw_declined"
+    reason: str
+
+class DrawOfferedMessage(BaseModel):
+    type: Literal["draw_offered"] = "draw_offered"
 
 class GameOverMessage(BaseModel):
     type: Literal["game_over"] = "game_over"
@@ -39,6 +45,8 @@ OutboundWebSocketMessage = Union[
     GameStateMessage,
     MoveAcceptedMessage,
     MoveRejectedMessage,
+    DrawDeclinedMessage,
+    DrawOfferedMessage,
     GameOverMessage,
     ErrorMessage,
 ]

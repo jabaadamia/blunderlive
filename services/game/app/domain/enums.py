@@ -17,6 +17,7 @@ class GameResult(StrEnum):
 class TerminationType(StrEnum):
     CHECKMATE = "checkmate"
     STALEMATE = "stalemate"
+    DRAW_AGREEMENT = "draw_agreement"
     INSUFFICIENT_MATERIAL = "insufficient_material"
     RESIGNATION = "resignation"
     ABANDONED = "abandoned"

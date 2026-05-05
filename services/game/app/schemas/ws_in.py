@@ -11,9 +11,11 @@ class MoveMessage(BaseModel):
 class ResignMessage(BaseModel):
     type: Literal["resign"]
 
+class DrawMessage(BaseModel):
+    type: Literal["draw_offer"]
 
 class PingMessage(BaseModel):
     type: Literal["ping"]
 
 
-InboundWebSocketMessage = Union[MoveMessage, ResignMessage, PingMessage]
+InboundWebSocketMessage = Union[MoveMessage, ResignMessage, DrawMessage, PingMessage]
