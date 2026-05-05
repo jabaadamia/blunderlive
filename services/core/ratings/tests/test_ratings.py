@@ -101,28 +101,40 @@ def test_apply_game_result_updates_both_ratings_and_history(rated_user, opponent
 
 @pytest.mark.django_db
 def test_my_ratings_endpoint_returns_authenticated_user_ratings(authenticated_ratings_client, rated_user):
-    Rating.objects.create(user=rated_user, category=RatingCategory.RAPID, value=1234)
-    Rating.objects.create(user=rated_user, category=RatingCategory.PUZZLE, value=1450)
+    rapid_rating = get_or_create_rating(rated_user, RatingCategory.RAPID)
+    rapid_rating.value = 1234
+    rapid_rating.save(update_fields=["value", "last_updated"])
+    puzzle_rating = get_or_create_rating(rated_user, RatingCategory.PUZZLE)
+    puzzle_rating.value = 1450
+    puzzle_rating.save(update_fields=["value", "last_updated"])
 
     response = authenticated_ratings_client.get("/api/ratings/me/")
 
     assert response.status_code == 200
-    assert len(response.json()) == 2
+    assert len(response.json()) == len(RatingCategory.values)
+    ratings_by_category = {entry["category"]: entry for entry in response.json()}
+    assert ratings_by_category[RatingCategory.RAPID]["value"] == 1234
+    assert ratings_by_category[RatingCategory.PUZZLE]["value"] == 1450
 
 
 @pytest.mark.django_db
 def test_user_ratings_endpoint_is_public(ratings_client, rated_user):
-    Rating.objects.create(user=rated_user, category=RatingCategory.RAPID, value=1234)
+    rapid_rating = get_or_create_rating(rated_user, RatingCategory.RAPID)
+    rapid_rating.value = 1234
+    rapid_rating.save(update_fields=["value", "last_updated"])
 
     response = ratings_client.get(f"/api/ratings/users/{rated_user.id}/")
 
     assert response.status_code == 200
-    assert response.json()[0]["category"] == RatingCategory.RAPID
+    ratings_by_category = {entry["category"]: entry for entry in response.json()}
+    assert ratings_by_category[RatingCategory.RAPID]["value"] == 1234
 
 
 @pytest.mark.django_db
 def test_my_rating_history_endpoint_filters_by_category(authenticated_ratings_client, rated_user):
-    rating = Rating.objects.create(user=rated_user, category=RatingCategory.RAPID, value=1216)
+    rating = get_or_create_rating(rated_user, RatingCategory.RAPID)
+    rating.value = 1216
+    rating.save(update_fields=["value", "last_updated"])
     RatingHistory.objects.create(
         rating=rating,
         source=RatingHistorySource.GAME,
