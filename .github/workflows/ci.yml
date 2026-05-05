@@ -61,9 +61,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generate JWT keypair for tests
+        run: |
+          mkdir -p ../../infra/dev-jwt
+          openssl genrsa -out ../../infra/dev-jwt/private.pem 2048
+          openssl rsa -in ../../infra/dev-jwt/private.pem -pubout -out ../../infra/dev-jwt/public.pem
+
       - name: Test
         env:
           REDIS_URL: redis://localhost:6379/0
+          GAME_JWT_PUBLIC_KEY_PATH: ../../infra/dev-jwt/public.pem
         run: pytest
 
   core-check:
@@ -99,11 +106,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generate JWT keypair for checks and tests
+        run: |
+          mkdir -p ../../infra/dev-jwt
+          openssl genrsa -out ../../infra/dev-jwt/private.pem 2048
+          openssl rsa -in ../../infra/dev-jwt/private.pem -pubout -out ../../infra/dev-jwt/public.pem
+
       - name: Django system check
         env:
           DJANGO_SETTINGS_MODULE: config.settings.local
           CORE_SECRET_KEY: ci-secret-key
           CORE_DATABASE_URL: postgresql://blunderlive:blunderlive@localhost:5432/blunderlive_core
+          CORE_JWT_PRIVATE_KEY_PATH: ../../infra/dev-jwt/private.pem
+          CORE_JWT_PUBLIC_KEY_PATH: ../../infra/dev-jwt/public.pem
         run: python manage.py check
 
       - name: Test
@@ -111,6 +126,8 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.local
           CORE_SECRET_KEY: ci-secret-key
           CORE_DATABASE_URL: postgresql://blunderlive:blunderlive@localhost:5432/blunderlive_core
+          CORE_JWT_PRIVATE_KEY_PATH: ../../infra/dev-jwt/private.pem
+          CORE_JWT_PUBLIC_KEY_PATH: ../../infra/dev-jwt/public.pem
         run: pytest
 
   docker-build:

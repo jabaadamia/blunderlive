@@ -12,7 +12,7 @@ FRONTEND_BUILD_COMPOSE := docker compose --env-file .env -f compose.yaml -f comp
 POSTGRES_USER := $(shell grep -E '^POSTGRES_USER=' .env 2>/dev/null | cut -d= -f2)
 POSTGRES_DB := $(shell grep -E '^POSTGRES_DB=' .env 2>/dev/null | cut -d= -f2)
 
-.PHONY: help init config build build-dev build-prod up up-dev up-prod down down-dev down-prod restart logs ps bootstrap \
+.PHONY: help init ensure-dev-jwt config build build-dev build-prod up up-dev up-prod down down-dev down-prod restart logs ps bootstrap \
 	collectstatic-core makemigrations-core migrate-core postgres-shell core-shell game-shell frontend-shell \
 	test-core test-game test-frontend lint-frontend build-frontend check-core check-game check-frontend check-all clean
 
@@ -51,6 +51,15 @@ help:
 
 init:
 	@test -f .env || cp .env.example .env
+	@$(MAKE) ensure-dev-jwt
+
+ensure-dev-jwt:
+	@mkdir -p infra/dev-jwt
+	@if [ ! -f infra/dev-jwt/private.pem ] || [ ! -f infra/dev-jwt/public.pem ]; then \
+		echo "Generating development JWT RSA keypair under infra/dev-jwt"; \
+		openssl genrsa -out infra/dev-jwt/private.pem 2048 >/dev/null 2>&1; \
+		openssl rsa -in infra/dev-jwt/private.pem -pubout -out infra/dev-jwt/public.pem >/dev/null 2>&1; \
+	fi
 
 config:
 	$(COMPOSE) config
@@ -128,6 +137,7 @@ frontend-shell:
 
 test-core:
 	@set -e; \
+	$(MAKE) ensure-dev-jwt; \
 	$(TEST_COMPOSE) up -d postgres; \
 	status=0; \
 	$(TEST_COMPOSE) run --rm -e DJANGO_SETTINGS_MODULE=config.settings.local core pytest || status=$$?; \
@@ -135,6 +145,7 @@ test-core:
 	exit $$status
 
 test-game:
+	$(MAKE) ensure-dev-jwt
 	$(COMPOSE) up -d redis
 	$(COMPOSE) run --rm game pytest
 

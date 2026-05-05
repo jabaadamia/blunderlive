@@ -11,6 +11,8 @@
 *.key
 *.crt
 secrets/
+infra/dev-jwt/*
+!infra/dev-jwt/.gitkeep
 
 # Python
 __pycache__/

@@ -1,31 +1,18 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
     get_swagger_ui_oauth2_redirect_html,
 )
-from redis.asyncio import Redis
 
 from .config import get_settings
+from .lifecycle import lifespan
+from .logging import configure_logging
 from .routers import system
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
-    redis_client = Redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
-    await redis_client.ping()
-    app.state.redis = redis_client
-
-    try:
-        yield
-    finally:
-        await redis_client.aclose()
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings.log_level)
 
     app = FastAPI(
         title="BlunderLive Game Service",
@@ -52,6 +39,7 @@ def create_app() -> FastAPI:
         return {
             "service": settings.app_name,
             "environment": settings.app_env,
+            "auth_algorithm": "RS256",
             "status": "ok",
         }
 

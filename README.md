@@ -24,6 +24,8 @@ Minimal production-minded starting point for the chess platform backend.
 2. Update `.env`
 3. For production values, at minimum set `CORE_SECRET_KEY`, `CORE_DEBUG=False`, and the real host/origin variables
 
+`make init` also generates a local development JWT keypair under `infra/dev-jwt/` when missing.
+
 ## Run development
 
 1. `make up-dev`
@@ -59,3 +61,8 @@ Development uses live-reload containers for Django, FastAPI, and Next.js, while 
 
 - Access the app through nginx for both environments so the frontend can use same-origin `/api` and `/api/game` URLs
 - PostgreSQL and Redis are exposed to the host only in development
+- `infra/dev-jwt/` is development/CI-only key material generated locally; do not use it in production
+- Production should mount externally managed JWT keys and point:
+  - `CORE_JWT_PRIVATE_KEY_PATH` to the core signing private key
+  - `CORE_JWT_PUBLIC_KEY_PATH` to the corresponding public key
+  - `GAME_JWT_PUBLIC_KEY_PATH` to the same public key used for verification

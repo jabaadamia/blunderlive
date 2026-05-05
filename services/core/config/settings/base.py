@@ -69,6 +69,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 CORE_DATABASE_URL = os.environ["CORE_DATABASE_URL"]
+CORE_JWT_PRIVATE_KEY_PATH = os.environ["CORE_JWT_PRIVATE_KEY_PATH"]
+CORE_JWT_PUBLIC_KEY_PATH = os.environ["CORE_JWT_PUBLIC_KEY_PATH"]
 
 DATABASES = {
     "default": dj_database_url.parse(CORE_DATABASE_URL, conn_max_age=600)
@@ -113,6 +115,9 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ALGORITHM": "RS256",
+    "SIGNING_KEY": Path(CORE_JWT_PRIVATE_KEY_PATH).read_text(encoding="utf-8"),
+    "VERIFYING_KEY": Path(CORE_JWT_PUBLIC_KEY_PATH).read_text(encoding="utf-8"),
 }
 
 SPECTACULAR_SETTINGS = {
