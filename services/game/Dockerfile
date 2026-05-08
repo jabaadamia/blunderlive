@@ -21,7 +21,7 @@ USER appuser
 
 EXPOSE 8005
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005", "--reload"]
+CMD ["sh", "-c", "uvicorn app.main:app --host ${APP_HOST} --port ${GAME_PORT} --reload"]
 
 FROM base AS runtime
 
@@ -32,4 +32,4 @@ USER appuser
 
 EXPOSE 8005
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
+CMD ["sh", "-c", "uvicorn app.main:app --host ${APP_HOST} --port ${GAME_PORT}"]

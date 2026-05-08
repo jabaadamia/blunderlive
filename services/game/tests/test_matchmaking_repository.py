@@ -1,3 +1,4 @@
+import os
 from uuid import UUID
 
 import pytest
@@ -12,7 +13,7 @@ from app.matchmaking.repository import (
 
 @pytest.mark.asyncio
 async def test_enqueue_player_persists_queue_entry() -> None:
-    redis = Redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
+    redis = Redis.from_url(os.environ["REDIS_URL"], encoding="utf-8", decode_responses=True)
     await redis.flushdb()
     repository = MatchmakingRepository(redis)
     user_id = UUID("15d92535-b40c-4ea1-b7dc-cf30598869cc")
@@ -35,7 +36,7 @@ async def test_enqueue_player_persists_queue_entry() -> None:
 
 @pytest.mark.asyncio
 async def test_enqueue_player_prevents_duplicate_entries() -> None:
-    redis = Redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
+    redis = Redis.from_url(os.environ["REDIS_URL"], encoding="utf-8", decode_responses=True)
     await redis.flushdb()
     repository = MatchmakingRepository(redis)
     user_id = UUID("51142be8-0d47-45bc-9f4e-f0bd3f97604c")
@@ -59,7 +60,7 @@ async def test_enqueue_player_prevents_duplicate_entries() -> None:
 
 @pytest.mark.asyncio
 async def test_enqueue_player_rejected_when_active_game_exists() -> None:
-    redis = Redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
+    redis = Redis.from_url(os.environ["REDIS_URL"], encoding="utf-8", decode_responses=True)
     await redis.flushdb()
     repository = MatchmakingRepository(redis)
     user_id = UUID("3b2b2134-e3d9-4f45-838f-9a5f3c8f5872")
@@ -77,7 +78,7 @@ async def test_enqueue_player_rejected_when_active_game_exists() -> None:
 
 @pytest.mark.asyncio
 async def test_remove_player_dequeues_and_clears_entry() -> None:
-    redis = Redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
+    redis = Redis.from_url(os.environ["REDIS_URL"], encoding="utf-8", decode_responses=True)
     await redis.flushdb()
     repository = MatchmakingRepository(redis)
     user_id = UUID("0df8ea49-fd6f-4a74-8b58-66d6385ac3c4")
@@ -98,7 +99,7 @@ async def test_remove_player_dequeues_and_clears_entry() -> None:
 @pytest.mark.asyncio
 async def test_fetch_waiting_players_returns_players_in_order() -> None:
     redis = Redis.from_url(
-        "redis://redis:6379/0",
+        os.environ["REDIS_URL"],
         encoding="utf-8",
         decode_responses=True,
     )
@@ -138,7 +139,7 @@ async def test_fetch_waiting_players_returns_players_in_order() -> None:
 @pytest.mark.asyncio
 async def test_try_create_match_assigns_active_games_and_removes_queue_entries() -> None:
     redis = Redis.from_url(
-        "redis://redis:6379/0",
+        os.environ["REDIS_URL"],
         encoding="utf-8",
         decode_responses=True,
     )

@@ -15,7 +15,7 @@ COPY frontend/ ./
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+CMD ["sh", "-c", "npm run dev -- -H ${HOSTNAME} -p ${PORT}"]
 
 FROM deps AS builder
 

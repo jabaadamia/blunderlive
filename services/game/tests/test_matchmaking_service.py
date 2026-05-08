@@ -1,3 +1,4 @@
+import os
 from uuid import UUID
 
 import pytest
@@ -10,7 +11,7 @@ from app.matchmaking.service import MatchmakingService
 @pytest.mark.asyncio
 async def test_run_matchmaking_cycle_matches_two_players() -> None:
     redis = Redis.from_url(
-        "redis://redis:6379/0",
+        os.environ["REDIS_URL"],
         encoding="utf-8",
         decode_responses=True,
     )
@@ -63,7 +64,7 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
 @pytest.mark.asyncio
 async def test_run_matchmaking_cycle_does_not_mix_rated_and_casual() -> None:
     redis = Redis.from_url(
-        "redis://redis:6379/0",
+        os.environ["REDIS_URL"],
         encoding="utf-8",
         decode_responses=True,
     )
