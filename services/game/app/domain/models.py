@@ -16,8 +16,10 @@ class GameSnapshot(BaseModel):
     status: GameStatus
     fen: str
     created_at: datetime
+    last_move_at: datetime | None = None
     white: GameParticipant
     black: GameParticipant
+    moves: list[str] = Field(default_factory=list)
     result: GameResult | None = None
     termination: TerminationType | None = None
     move_count: int = Field(default=0, ge=0)

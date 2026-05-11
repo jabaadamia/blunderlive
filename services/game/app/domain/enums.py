@@ -19,7 +19,10 @@ class TerminationType(StrEnum):
     STALEMATE = "stalemate"
     DRAW_AGREEMENT = "draw_agreement"
     INSUFFICIENT_MATERIAL = "insufficient_material"
+    FIFTY_MOVE_RULE = "fifty_move_rule"
+    THREEFOLD_REPETITION = "threefold_repetition"
     RESIGNATION = "resignation"
+    TIMEOUT = "timeout"
     ABANDONED = "abandoned"
 
 

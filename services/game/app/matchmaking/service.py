@@ -1,11 +1,15 @@
-from uuid import uuid4
-
+from ..chess.service import ChessGameService
 from .repository import MatchmakingRepository
 
 
 class MatchmakingService:
-    def __init__(self, repository: MatchmakingRepository) -> None:
+    def __init__(
+        self,
+        repository: MatchmakingRepository,
+        chess_service: ChessGameService,
+    ) -> None:
         self.repository = repository
+        self.chess_service = chess_service
 
     async def run_matchmaking_cycle(self) -> None:
         buckets = await self.repository.fetch_active_buckets()
@@ -26,20 +30,20 @@ class MatchmakingService:
             player_one_id = players[0]
             player_two_id = players[1]
 
-            game_id = str(uuid4())
+            snapshot = self.chess_service.create_game(
+                white_player_id=player_one_id,
+                black_player_id=player_two_id,
+            )
 
             success = await self.repository.try_create_match(
                 queue_bucket=bucket,
                 player_one_id=player_one_id,
                 player_two_id=player_two_id,
-                game_id=game_id,
+                snapshot=snapshot,
             )
 
             if not success:
                 continue
 
             # TODO:
-            # - create persistent DB game
-            # - initialize chess state
             # - publish websocket event
-            # - store game snapshot
