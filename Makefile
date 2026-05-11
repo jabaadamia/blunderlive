@@ -9,6 +9,7 @@ COMPOSE := docker compose --env-file .env -f compose.yaml -f compose.override.$(
 TEST_COMPOSE_PROJECT ?= blunderlive-test
 TEST_COMPOSE := COMPOSE_PROJECT_NAME=$(TEST_COMPOSE_PROJECT) docker compose --env-file .env -f compose.yaml
 FRONTEND_BUILD_COMPOSE := docker compose --env-file .env -f compose.yaml -f compose.override.prod.yaml
+TEST_REDIS_URL := redis://redis:6379/15
 POSTGRES_USER := $(shell grep -E '^POSTGRES_USER=' .env 2>/dev/null | cut -d= -f2)
 POSTGRES_DB := $(shell grep -E '^POSTGRES_DB=' .env 2>/dev/null | cut -d= -f2)
 
@@ -147,7 +148,7 @@ test-core:
 test-game:
 	$(MAKE) ensure-dev-jwt
 	$(COMPOSE) up -d redis
-	$(COMPOSE) run --rm game pytest
+	$(COMPOSE) run --rm -e REDIS_URL=$(TEST_REDIS_URL) game pytest
 
 test-frontend:
 	$(COMPOSE) run --rm --no-deps frontend npm run test --if-present
