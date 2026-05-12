@@ -1,9 +1,12 @@
 import os
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
 from redis.asyncio import Redis
 
+from app.domain.enums import GameStatus, PlayerColor
+from app.domain.models import GameParticipant, GameSnapshot
 from app.matchmaking.repository import (
     DuplicateQueueEntryError,
     MatchmakingRepository,
@@ -165,17 +168,102 @@ async def test_try_create_match_assigns_active_games_and_removes_queue_entries()
         increment_ms=0,
     )
 
+    snapshot = GameSnapshot(
+        game_id=UUID("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+        status=GameStatus.ACTIVE,
+        fen="startpos",
+        created_at=datetime.now(UTC),
+        white=GameParticipant(user_id=user_one, color=PlayerColor.WHITE),
+        black=GameParticipant(user_id=user_two, color=PlayerColor.BLACK),
+        moves=[],
+        move_count=0,
+    )
+
     success = await repository.try_create_match(
         queue_bucket="rated_300000_0",
         player_one_id=str(user_one),
         player_two_id=str(user_two),
-        game_id="game-123",
+        snapshot=snapshot,
     )
 
     queue_members = await redis.zrange(
         "matchmaking:queue:rated_300000_0",
         0,
         -1,
+    )
+
+    player_one_active = await redis.get(f"matchmaking:active_game:{user_one}")
+
+    player_two_active = await redis.get(f"matchmaking:active_game:{user_two}")
+    stored_snapshot = await repository.fetch_game_snapshot(game_id=snapshot.game_id)
+
+    await redis.aclose()
+
+    assert success is True
+    assert queue_members == []
+    assert player_one_active == str(snapshot.game_id)
+    assert player_two_active == str(snapshot.game_id)
+    assert stored_snapshot.game_id == snapshot.game_id
+    assert stored_snapshot.white.user_id == user_one
+    assert stored_snapshot.black.user_id == user_two
+
+@pytest.mark.asyncio
+async def test_update_game_snapshot_clears_active_games_when_finished() -> None:
+    redis = Redis.from_url(
+        os.environ["REDIS_URL"],
+        encoding="utf-8",
+        decode_responses=True,
+    )
+
+    await redis.flushdb()
+
+    repository = MatchmakingRepository(redis)
+
+    user_one = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+    user_two = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+
+    initial_snapshot = GameSnapshot(
+        game_id=UUID("99999999-9999-9999-9999-999999999999"),
+        status=GameStatus.ACTIVE,
+        fen="active-fen",
+        created_at=datetime.now(UTC),
+        white=GameParticipant(
+            user_id=user_one,
+            color=PlayerColor.WHITE,
+        ),
+        black=GameParticipant(
+            user_id=user_two,
+            color=PlayerColor.BLACK,
+        ),
+        move_count=1,
+    )
+
+    await repository.create_game_snapshot(
+        snapshot=initial_snapshot,
+    )
+
+    finished_snapshot = initial_snapshot.model_copy(
+        update={
+            "status": GameStatus.FINISHED,
+            "fen": "finished-fen",
+            "moves": ["e2e4", "e7e5"],
+            "move_count": 2,
+        },
+    )
+
+    await redis.set(
+        f"matchmaking:active_game:{user_one}",
+        str(initial_snapshot.game_id),
+    )
+
+    await redis.set(
+        f"matchmaking:active_game:{user_two}",
+        str(initial_snapshot.game_id),
+    )
+
+    await repository.update_game_snapshot(
+        previous_move_count=1,
+        snapshot=finished_snapshot,
     )
 
     player_one_active = await redis.get(
@@ -186,9 +274,12 @@ async def test_try_create_match_assigns_active_games_and_removes_queue_entries()
         f"matchmaking:active_game:{user_two}"
     )
 
+    stored_snapshot = await repository.fetch_game_snapshot(
+        game_id=initial_snapshot.game_id,
+    )
+
     await redis.aclose()
 
-    assert success is True
-    assert queue_members == []
-    assert player_one_active == "game-123"
-    assert player_two_active == "game-123"
+    assert player_one_active is None
+    assert player_two_active is None
+    assert stored_snapshot.status == GameStatus.FINISHED

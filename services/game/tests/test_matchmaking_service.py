@@ -4,6 +4,8 @@ from uuid import UUID
 import pytest
 from redis.asyncio import Redis
 
+from app.chess.service import ChessGameService
+from app.domain.enums import GameStatus
 from app.matchmaking.repository import MatchmakingRepository
 from app.matchmaking.service import MatchmakingService
 
@@ -19,7 +21,8 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
     await redis.flushdb()
 
     repository = MatchmakingRepository(redis)
-    service = MatchmakingService(repository)
+    chess_service = ChessGameService()
+    service = MatchmakingService(repository, chess_service)
 
     user_one = UUID("aaaaaaaa-1111-1111-1111-111111111111")
     user_two = UUID("bbbbbbbb-2222-2222-2222-222222222222")
@@ -48,6 +51,10 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
         user_id=user_two,
     )
 
+    stored_snapshot = await repository.fetch_game_snapshot(
+        game_id=UUID(player_one_status.active_game_id) # type: ignore[arg-type]
+    )
+
     await redis.aclose()
 
     assert player_one_status.is_queued is False
@@ -60,6 +67,9 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
         player_one_status.active_game_id
         == player_two_status.active_game_id
     )
+    assert stored_snapshot.status == GameStatus.ACTIVE
+    assert stored_snapshot.white.user_id == user_one
+    assert stored_snapshot.black.user_id == user_two
 
 @pytest.mark.asyncio
 async def test_run_matchmaking_cycle_does_not_mix_rated_and_casual() -> None:
@@ -72,7 +82,8 @@ async def test_run_matchmaking_cycle_does_not_mix_rated_and_casual() -> None:
     await redis.flushdb()
 
     repository = MatchmakingRepository(redis)
-    service = MatchmakingService(repository)
+    chess_service = ChessGameService()
+    service = MatchmakingService(repository, chess_service)
 
     rated_user = UUID("cccccccc-3333-3333-3333-333333333333")
     casual_user = UUID("dddddddd-4444-4444-4444-444444444444")

@@ -44,6 +44,3 @@ class MatchmakingService:
 
             if not success:
                 continue
-
-            # TODO:
-            # - publish websocket event

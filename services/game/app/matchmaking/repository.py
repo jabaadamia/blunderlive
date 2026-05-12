@@ -6,6 +6,10 @@ from uuid import UUID
 
 from redis.asyncio import Redis
 
+from ..domain.enums import GameStatus
+from ..domain.exceptions import GameNotFoundError
+from ..domain.models import GameSnapshot
+
 
 def build_time_control_bucket(rated: bool, initial_time_ms: int, increment_ms: int) -> str:
     rated_label = "rated" if rated else "casual"
@@ -50,6 +54,10 @@ class MatchmakingRepository:
     @staticmethod
     def _queue_key(queue_bucket: str) -> str:
         return f"matchmaking:queue:{queue_bucket}"
+
+    @staticmethod
+    def _game_snapshot_key(game_id: UUID) -> str:
+        return f"game:snapshot:{game_id}"
     
     @staticmethod
     def _match_found_key(user_id: UUID) -> str:
@@ -150,7 +158,7 @@ class MatchmakingRepository:
         queue_bucket: str,
         player_one_id: str,
         player_two_id: str,
-        game_id: str,
+        snapshot: GameSnapshot,
     ) -> bool:
         queue_key = self._queue_key(queue_bucket)
 
@@ -159,6 +167,7 @@ class MatchmakingRepository:
 
         player_one_active_key = self._active_game_key(UUID(player_one_id))
         player_two_active_key = self._active_game_key(UUID(player_two_id))
+        snapshot_key = self._game_snapshot_key(snapshot.game_id)
 
         while True:
             try:
@@ -197,8 +206,9 @@ class MatchmakingRepository:
                     pipe.delete(player_one_entry_key)
                     pipe.delete(player_two_entry_key)
 
-                    pipe.set(player_one_active_key, game_id)
-                    pipe.set(player_two_active_key, game_id)
+                    pipe.set(player_one_active_key, str(snapshot.game_id))
+                    pipe.set(player_two_active_key, str(snapshot.game_id))
+                    pipe.set(snapshot_key, snapshot.model_dump_json())
 
                     await pipe.execute()
                     return True
@@ -208,6 +218,75 @@ class MatchmakingRepository:
 
                 if isinstance(exc, WatchError):
                     continue
+                raise
+
+    async def create_game_snapshot(
+        self,
+        *,
+        snapshot: GameSnapshot,
+    ) -> None:
+        await self.redis.set(
+            self._game_snapshot_key(snapshot.game_id),
+            snapshot.model_dump_json(),
+        )
+
+    async def fetch_game_snapshot(self, *, game_id: UUID) -> GameSnapshot:
+        payload = await self.redis.get(self._game_snapshot_key(game_id))
+        if not payload:
+            raise GameNotFoundError("game_not_found")
+
+        return GameSnapshot.model_validate_json(payload)
+
+    async def update_game_snapshot(
+        self,
+        *,
+        previous_move_count: int,
+        snapshot: GameSnapshot,
+    ) -> bool:
+        snapshot_key = self._game_snapshot_key(snapshot.game_id)
+
+        while True:
+            try:
+                async with self.redis.pipeline(transaction=True) as pipe:
+                    await pipe.watch(snapshot_key)
+
+                    current_payload = await pipe.get(snapshot_key)
+
+                    if not current_payload:
+                        raise GameNotFoundError("game_not_found")
+
+                    current_snapshot = GameSnapshot.model_validate_json(
+                        current_payload
+                    )
+
+                    if current_snapshot.move_count != previous_move_count:
+                        await pipe.unwatch()
+                        return False
+
+                    pipe.multi()
+
+                    pipe.set(
+                        snapshot_key,
+                        snapshot.model_dump_json(),
+                    )
+
+                    if snapshot.status != GameStatus.ACTIVE:
+                        pipe.delete(
+                            self._active_game_key(snapshot.white.user_id)
+                        )
+                        pipe.delete(
+                            self._active_game_key(snapshot.black.user_id)
+                        )
+
+                    await pipe.execute()
+                    return True
+
+            except Exception as exc:
+                from redis.exceptions import WatchError
+
+                if isinstance(exc, WatchError):
+                    continue
+
                 raise
 
     async def fetch_active_buckets(self) -> list[str]:
