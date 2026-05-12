@@ -5,6 +5,7 @@ from fastapi.openapi.docs import (
 )
 
 from .matchmaking import router as matchmaking_router
+from .game import router as game_router
 
 from .config import get_settings
 from .lifecycle import lifespan
@@ -24,6 +25,7 @@ def create_app() -> FastAPI:
 
     app.include_router(system.router)
     app.include_router(matchmaking_router.router)
+    app.include_router(game_router.router)
 
     @app.get("/docs", include_in_schema=False)
     async def swagger_ui_html():

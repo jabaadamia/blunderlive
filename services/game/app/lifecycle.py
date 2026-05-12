@@ -5,6 +5,8 @@ import logging
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
+from .chess.service import ChessGameService
+from .game.connection_manager import ConnectionManager
 from .config import get_settings
 from .matchmaking.repository import MatchmakingRepository
 from .matchmaking.service import MatchmakingService
@@ -27,9 +29,11 @@ async def lifespan(app: FastAPI):
 
     app.state.redis = redis_client
     app.state.settings = settings
+    app.state.connection_manager = ConnectionManager()
 
     matchmaking_repository = MatchmakingRepository(redis_client)
-    matchmaking_service = MatchmakingService(matchmaking_repository)
+    chess_service = ChessGameService()
+    matchmaking_service = MatchmakingService(matchmaking_repository, chess_service)
 
     matchmaking_task = asyncio.create_task(
         matchmaking_worker(matchmaking_service)
