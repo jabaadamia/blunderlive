@@ -3,6 +3,7 @@
 import { CORE_API_BASE, FRONTEND_AUTH_API_BASE } from "@/lib/api";
 
 import { ApiError, toErrorBody } from "./api-errors";
+import { getTokenExpiry } from "./jwt";
 import { clearAccessToken, getAccessToken, setAccessToken } from "./token-storage";
 import type {
   AuthTokenResponse,
@@ -18,6 +19,7 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 };
 
 let refreshInFlight: Promise<string | null> | null = null;
+const TOKEN_REFRESH_SKEW_MS = 60_000;
 
 type AuthHandledResponse<T> =
   | {
@@ -38,6 +40,26 @@ function createHeaders(init?: HeadersInit) {
   }
 
   return headers;
+}
+
+export function isTokenFresh(token: string, skewMs = TOKEN_REFRESH_SKEW_MS) {
+  const expiry = getTokenExpiry(token);
+
+  if (!expiry) {
+    return false;
+  }
+
+  return expiry - Date.now() > skewMs;
+}
+
+export function getTokenRefreshDelay(token: string, skewMs = TOKEN_REFRESH_SKEW_MS) {
+  const expiry = getTokenExpiry(token);
+
+  if (!expiry) {
+    return 0;
+  }
+
+  return Math.max(expiry - Date.now() - skewMs, 0);
 }
 
 async function parseResponseBody(response: Response) {
@@ -67,7 +89,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (!skipAuth) {
-    const token = getAccessToken();
+    const token = await getUsableAccessToken();
 
     if (token) {
       requestHeaders.set("Authorization", `Bearer ${token}`);
@@ -172,6 +194,16 @@ export async function refreshAccessToken() {
   })();
 
   return refreshInFlight;
+}
+
+export async function getUsableAccessToken() {
+  const token = getAccessToken();
+
+  if (token && isTokenFresh(token)) {
+    return token;
+  }
+
+  return refreshAccessToken();
 }
 
 export async function login(payload: LoginPayload) {

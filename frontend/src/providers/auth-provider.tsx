@@ -9,8 +9,11 @@ import {
   useState,
 } from "react";
 
+import { ACCESS_TOKEN_STORAGE_KEY } from "@/lib/api";
 import {
+  getTokenRefreshDelay,
   getMyRatings,
+  getUsableAccessToken,
   login,
   logout,
   refreshAccessToken,
@@ -38,10 +41,8 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(() => getAccessToken());
-  const [status, setStatus] = useState<AuthStatus>(() =>
-    getAccessToken() ? "authenticated" : "loading",
-  );
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<AuthStatus>("loading");
 
   const syncAuthenticatedState = useCallback((token: string | null) => {
     setAccessToken(token);
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isActive = true;
 
     async function bootstrapSession() {
-      const freshToken = await refreshAccessToken();
+      const freshToken = await getUsableAccessToken();
 
       if (isActive) {
         syncAuthenticatedState(freshToken);
@@ -71,6 +72,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isActive = false;
     };
   }, [syncAuthenticatedState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key !== null && event.key !== ACCESS_TOKEN_STORAGE_KEY) {
+        return;
+      }
+
+      syncAuthenticatedState(getAccessToken());
+    }
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [syncAuthenticatedState]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void refreshSession();
+    }, getTokenRefreshDelay(accessToken));
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [accessToken, refreshSession]);
 
   const handleLogin = useCallback(
     async (payload: LoginPayload) => {
