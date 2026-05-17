@@ -47,6 +47,7 @@ export default function Board({
     boardRef: boardGridRef,
     onDragStart,
     onDragEnd,
+    orientation,
   });
  
   const draggedPiece: Piece | null =

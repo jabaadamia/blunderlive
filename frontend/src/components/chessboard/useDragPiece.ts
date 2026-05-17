@@ -15,6 +15,7 @@ interface UseDragPieceOptions {
   onDragEnd?: (fromIndex: number, targetIndex: number | null) => void;
   boardRef: React.RefObject<HTMLDivElement | null>;
   cols?: number;
+  orientation?: 'white' | 'black';
 }
  
 export function useDragPiece({
@@ -22,6 +23,7 @@ export function useDragPiece({
   onDragEnd,
   boardRef,
   cols = 8,
+  orientation = 'white',
 }: UseDragPieceOptions) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -45,7 +47,7 @@ export function useDragPiece({
       setDrag({ ...state });
       onDragStart?.(squareIndex);
     },
-    [boardRef, cols, onDragStart],
+    [boardRef, cols, orientation, onDragStart],
   );
  
   const moveDrag = useCallback((e: React.PointerEvent) => {
@@ -78,12 +80,17 @@ export function useDragPiece({
           targetIndex = row * 8 + col;
         }
       }
- 
+      if (orientation === 'black' && targetIndex !== null) {
+        // Flip the index for black orientation
+        const flippedRow = 7 - Math.floor(targetIndex / 8);
+        const flippedCol = 7 - (targetIndex % 8);
+        targetIndex = flippedRow * 8 + flippedCol;
+      }
       dragRef.current = null;
       setDrag(null);
       onDragEnd?.(current.index, targetIndex);
     },
-    [boardRef, cols, onDragEnd],
+    [boardRef, cols, orientation, onDragEnd],
   );
  
   return { drag, startDrag, moveDrag, endDrag, ghostRef };

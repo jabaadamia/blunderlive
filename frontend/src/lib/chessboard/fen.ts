@@ -1,6 +1,8 @@
 import { GameState, Board, Piece, Color, PieceType, CastlingRights } from './types';
 import { createEmptyBoard } from './moveGen';
 
+export const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 export const parseFen = (fen: string): GameState => {
     const [pieces, turn, castling, enPassant, halfMoves, fullMoves] = fen.split(' ');
     const board: Board = createEmptyBoard();

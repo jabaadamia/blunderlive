@@ -1,8 +1,6 @@
 import { Color, PieceType, Piece, Square, Board, GameState, Move, CastlingRights } from './types';
 
 
-export const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
 export const createEmptyBoard = (): Board => new Array(64).fill(null);
 
 // --- BOARD MATH & HELPERS ---
