@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
+import { SiteNav } from "@/components/site-nav";
 import { getErrorMessage } from "@/features/auth/lib/api-errors";
 import type { Rating } from "@/features/auth/types";
 import { useAuth } from "@/providers/auth-provider";
@@ -12,12 +13,10 @@ function formatNullableNumber(value: number | null, digits: number) {
 }
 
 export function RatingsDashboard() {
-  const router = useRouter();
-  const { getMyRatings, logout } = useAuth();
+  const { getMyRatings } = useAuth();
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,21 +49,11 @@ export function RatingsDashboard() {
     };
   }, [getMyRatings]);
 
-  async function handleLogout() {
-    setIsLoggingOut(true);
-
-    try {
-      await logout();
-      router.replace("/login");
-      router.refresh();
-    } finally {
-      setIsLoggingOut(false);
-    }
-  }
-
   return (
     <main className="min-h-screen bg-neutral-50 px-4 py-8 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <SiteNav />
+
         <header className="flex flex-col gap-4 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.08em] text-neutral-500">
@@ -76,14 +65,14 @@ export function RatingsDashboard() {
               <span className="font-mono"> /api/ratings/me/</span>.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="inline-flex h-10 items-center justify-center rounded-md border border-neutral-300 px-4 text-sm font-medium transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:hover:bg-neutral-800"
-          >
-            {isLoggingOut ? "Signing out..." : "Sign out"}
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/matchmaking"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-700 px-5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+            >
+              Play
+            </Link>
+          </div>
         </header>
 
         <section className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">

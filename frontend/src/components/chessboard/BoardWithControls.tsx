@@ -1,36 +1,64 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Board from '@/components/chessboard/Board';
 import ControlBar from './ControlBar';
 import { parseFen } from '@/lib/chessboard/fen';
+import { indexToCoord } from '@/lib/chessboard/coords';
 import { getLegalMovesOf, makeMove } from '@/lib/chessboard/moveGen';
-import { SquareCoord } from '@/lib/chessboard/coords';
+import type { PieceType } from '@/lib/chessboard/types';
 import PromotionPicker from './PromotionPicker';
- 
-const initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
- 
+import { INITIAL_FEN } from '@/lib/chessboard/fen';
+import PGNViewer from '../PGN/PGNviewer';
+
+
 interface BoardWithControlsProps {
   fen?: string;
   orientation?: 'white' | 'black';
   controlBar?: boolean;
   pgnViewer?: boolean;
+  /** Server or PGN move list (e.g. UCI strings). When omitted, local play appends each move here. */
+  moves?: string[];
+  /** When set, completed moves call this with UCI; position updates come from `fen` (server‑authoritative). */
+  onMove?: (uci: string) => void;
+  /** When `onMove` is set, disables input (e.g. opponent’s turn). */
+  interactionEnabled?: boolean;
 }
- 
+
 export default function BoardWithControls({
-  fen = initialFen,
+  fen = INITIAL_FEN,
   orientation = 'white',
   controlBar = true,
   pgnViewer = true,
-}: BoardWithControlsProps) { 
- 
-  const [gameState, setGameState] = useState(() => parseFen(fen));
+  moves: movesProp,
+  onMove,
+  interactionEnabled = true,
+}: BoardWithControlsProps) {
+  const isControlled = typeof onMove === 'function';
+  const controlledGameState = useMemo(() => parseFen(fen), [fen]);
+  const [uncontrolledGameState, setUncontrolledGameState] = useState(() => parseFen(fen));
   const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>(orientation);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [highlightIndices, setHighlightIndices] = useState<number[]>([]);
   const [pendingPromotion, setPendingPromotion] = useState<{ from: number; to: number } | null>(null);
+  const [localMoves, setLocalMoves] = useState<string[]>([]);
+  const [currentPly, setCurrentPly] = useState(0);
   const boardGridRef = useRef<HTMLDivElement | null>(null);
- 
+  const gameState = isControlled ? controlledGameState : uncontrolledGameState;
+
+  const displayMoves = movesProp !== undefined ? movesProp : localMoves;
+
   const activeColor = gameState.turn; // 'w' | 'b'
+  const canInteract = !isControlled || interactionEnabled;
+
+  function applyMove(from: number, to: number, promotion?: PieceType) {
+    const uci = indexToCoord(from) + indexToCoord(to) + (promotion ?? '');
+    if (isControlled && onMove) {
+      onMove(uci);
+    } else {
+      setUncontrolledGameState((g) => makeMove(g, { from, to, promotion }));
+      setLocalMoves((m) => [...m, uci]);
+    }
+  }
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -62,8 +90,7 @@ export default function BoardWithControls({
  
   function handlePromotionPick(piece: 'q' | 'r' | 'b' | 'n') {
     if (!pendingPromotion) return;
-    const newGameState = makeMove(gameState, { ...pendingPromotion, promotion: piece });
-    setGameState(newGameState);
+    applyMove(pendingPromotion.from, pendingPromotion.to, piece);
     setPendingPromotion(null);
     clearSelection();
   }
@@ -74,16 +101,20 @@ export default function BoardWithControls({
   }
 
   function handleSquareClick(index: number) {
+    if (isControlled && !canInteract) {
+      clearSelection();
+      return;
+    }
+
     const piece = gameState.board[index];
- 
+
     if (selectedIndex !== null) {
       if (highlightIndices.includes(index)) {
         if (isPromotion(selectedIndex, index)) {
           setPendingPromotion({ from: selectedIndex, to: index });
           return;
         }
-        const newGameState = makeMove(gameState, { from: selectedIndex, to: index });
-        setGameState(newGameState);
+        applyMove(selectedIndex, index);
         clearSelection();
         return;
       }
@@ -104,18 +135,25 @@ export default function BoardWithControls({
   }
  
   function handleDragStart(index: number) {
-    // Drag counts as an immediate selection
+    if (isControlled && !canInteract) return;
+    const piece = gameState.board[index];
+    if (!piece || piece.color !== activeColor) return;
+    // If this piece is already selected, keep highlights (selectSquare would toggle off).
+    if (selectedIndex === index) return;
     selectSquare(index);
   }
- 
+
   function handleDragEnd(fromIndex: number, toIndex: number | null) {
+    if (isControlled && !canInteract) {
+      clearSelection();
+      return;
+    }
     if (toIndex !== null && highlightIndices.includes(toIndex)) {
       if (isPromotion(fromIndex, toIndex)) {
         setPendingPromotion({ from: fromIndex, to: toIndex });
         return;
       }
-      const newGameState = makeMove(gameState, {from: fromIndex, to: toIndex});
-      setGameState(newGameState); 
+      applyMove(fromIndex, toIndex);
     }
     clearSelection();
   }
@@ -153,13 +191,19 @@ export default function BoardWithControls({
         )}
       </div>
  
-      {/* Right column: PGN viewer */}
       {pgnViewer && (
-        <div className="w-64 shrink-0 border border-border rounded p-2 overflow-y-auto">
-          PGN Viewer Placeholder
-        </div>
+        <PGNViewer
+          moves={displayMoves}
+          currentPly={currentPly}
+          onSelectPly={(ply) => {
+            setCurrentPly(ply);
+
+            // TODO:
+            // reconstruct board from initial position + moves.slice(0, ply)
+            // then setGameState(reconstructedState)
+          }}
+        />
       )}
     </div>
   );
 }
- 
