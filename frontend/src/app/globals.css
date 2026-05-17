@@ -3,11 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --dark-square: #888888;
+  --light-square: #ededed;
+  --selected-piece-bg: #c7bb8b;
+  --legal-move-circle-bg: #4e4e4e88;
+  --attacked-piece-bg: #474747;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-dark-square: var(--dark-square);
+  --color-light-square: var(--light-square);
+  --color-selected-piece-bg: var(--selected-piece-bg);
+  --color-legal-move-circle-bg: var(--legal-move-circle-bg);
+  --color-attacked-piece-bg: var(--attacked-piece-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

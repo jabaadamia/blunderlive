@@ -42,16 +42,16 @@ export default function PromotionPicker({ toIndex, color, orientation, boardRef,
     <>
       <div className="fixed inset-0 z-9998" onPointerDown={onCancel} />
       <div
-        className="fixed z-9999 flex flex-col rounded overflow-hidden border border-border"
+        className="fixed z-9999 flex flex-col overflow-hidden"
         style={{ left: position.left, top: position.top, width: position.size, height: position.size * 4 }}
       >
         {pieces.map((p) => (
           <button
             key={p}
-            className="flex-1 flex items-center justify-center bg-cyan-500 hover:bg-cyan-600 transition-colors"
+            className="group flex-1 flex items-center justify-center bg-white/10 backdrop-blur-md hover:bg-white/20 border-b border-white/5 last:border-0 transition-all"
             onPointerDown={(e) => { e.stopPropagation(); onPick(p); }}
           >
-            <div className="relative w-full h-full">
+            <div className="relative w-full h-full transition-transform duration-200 group-hover:scale-110">
               <PieceComponent piece={{ type: p, color }} />
             </div>
           </button>

@@ -27,7 +27,6 @@ export default function DragGhost({ drag, piece, ghostRef }: DragGhostProps) {
         top: drag.y - half,
         width: drag.size,
         height: drag.size,
-        opacity: 0.85,
         transform: 'scale(1.08)',
         transformOrigin: 'center',
         filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.45))',

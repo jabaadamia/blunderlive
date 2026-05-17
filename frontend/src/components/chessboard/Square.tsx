@@ -34,19 +34,28 @@ export default function Square({
       onClick={() => onClick?.(square)}
       className={[
         'relative flex items-center justify-center w-full h-full',
-        isDark ? 'bg-cyan-800' : 'bg-cyan-100',
-        isSelected ? 'ring-4 ring-inset ring-yellow-400' : '',
+        isDark ? 'bg-dark-square' : 'bg-light-square',
+        isSelected ? 'bg-selected-piece-bg' : '',
         // Only show pointer cursor when there's an interactive piece OR it's a legal target
         isInteractive && hasPiece ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
       ].join(' ')}
     >
-      {/* Legal move dot / capture ring. TODO: change styling */}
+      {/* Legal move dot / capture target */}
       {isHighlighted && (
         hasPiece
           ?
-            <div className="absolute inset-0 ring-4 ring-inset ring-black/30 rounded-sm pointer-events-none z-10" />
+            <div className="absolute inset-0 z-10 pointer-events-none">
+              {/* Top Left */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-t-4 border-l-4 border-attacked-piece-bg" />
+              {/* Top Right */}
+              <div className="absolute top-0 right-0 w-3 h-3 border-t-4 border-r-4 border-attacked-piece-bg" />
+              {/* Bottom Left */}
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-4 border-l-4 border-attacked-piece-bg" />
+              {/* Bottom Right */}
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-4 border-r-4 border-attacked-piece-bg" />
+            </div>
           :
-            <div className="absolute w-[32%] h-[32%] rounded-full bg-black/25 pointer-events-none z-10" />
+            <div className="absolute w-[32%] h-[32%] rounded-full bg-legal-move-circle-bg pointer-events-none z-10" />
       )}
  
       {hasPiece && (
