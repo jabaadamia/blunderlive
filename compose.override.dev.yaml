@@ -59,14 +59,9 @@ services:
     environment:
       NODE_ENV: development
     command:
-      - npm
-      - run
-      - dev
-      - --
-      - -H
-      - 0.0.0.0
-      - -p
-      - "3000"
+      - sh
+      - -c
+      - npm ci && npm run dev -- -H 0.0.0.0 -p 3000
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
