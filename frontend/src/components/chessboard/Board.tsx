@@ -55,79 +55,55 @@ export default function Board({
  
   return (
     <div
-      className={`w-full aspect-square flex flex-col ${className ?? ''}`}
+      className={`flex aspect-square w-full flex-col ${className ?? ''}`}
       onPointerMove={drag ? moveDrag : undefined}
       onPointerUp={drag ? endDrag : undefined}
     >
-      <div className="flex flex-1 min-h-0">
-        {/* Rank labels */}
-        <div className="flex flex-col w-5 shrink-0 select-none">
-          {displayRanks.map((rank) => (
-            <div
-              key={rank}
-              className="flex-1 flex items-center justify-center text-xs text-muted-foreground font-medium"
-            >
-              {rank}
-            </div>
-          ))}
-        </div>
- 
-        {/* Board grid + file labels */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <div
-            ref={(el) => {
-              (boardGridRef as React.RefObject<HTMLDivElement | null>).current = el;
-              if (gridRef) gridRef.current = el;
-            }}
-            className="grid grid-cols-8 grid-rows-8 flex-1 border border-border"
-          >
-            {displayRanks.map((rank) =>
-              displayFiles.map((file) => {
-                const square = `${file}${rank}` as SquareCoord;
-                const index = coordToIndex(square);
-                const fileIdx = FILES.indexOf(file);
-                const rankIdx = rank - 1;
-                const isDark = (fileIdx + rankIdx) % 2 === 0;
-                const piece = board[index] as Piece | null;
- 
-                const isInteractive =
-                  piece != null && activeColor != null
-                    ? piece.color === activeColor
-                    : piece != null;
- 
-                return (
-                  <Square
-                    key={square}
-                    square={square}
-                    squareIndex={index}
-                    piece={piece}
-                    isDark={isDark}
-                    isSelected={selectedIndex === index}
-                    isHighlighted={highlightIndices.includes(index)}
-                    isDragging={drag?.index === index}
-                    isInteractive={isInteractive}
-                    onClick={() => onSquareClick?.(index, square)}
-                    onPieceDragStart={startDrag}
-                  />
-                );
-              })
-            )}
-          </div>
- 
-          {/* File labels */}
-          <div className="grid grid-cols-8 h-5 shrink-0 select-none">
-            {displayFiles.map((file) => (
-              <div
-                key={file}
-                className="flex items-center justify-center text-xs text-muted-foreground font-medium"
-              >
-                {file}
-              </div>
-            ))}
-          </div>
-        </div>
+      <div
+        ref={(el) => {
+          (boardGridRef as React.RefObject<HTMLDivElement | null>).current = el;
+          if (gridRef) gridRef.current = el;
+        }}
+        className="grid flex-1 grid-cols-8 grid-rows-8 overflow-hidden border border-border"
+      >
+        {displayRanks.map((rank, rankIndex) =>
+          displayFiles.map((file, fileIndex) => {
+            const square = `${file}${rank}` as SquareCoord;
+            const index = coordToIndex(square);
+            const boardFileIndex = FILES.indexOf(file);
+            const boardRankIndex = rank - 1;
+            const isDark = (boardFileIndex + boardRankIndex) % 2 === 0;
+            const piece = board[index] as Piece | null;
+
+            const isInteractive =
+              piece != null && activeColor != null
+                ? piece.color === activeColor
+                : piece != null;
+
+            const showRankLabel = fileIndex === 0;
+            const showFileLabel = rankIndex === displayRanks.length - 1;
+
+            return (
+              <Square
+                key={square}
+                square={square}
+                squareIndex={index}
+                piece={piece}
+                isDark={isDark}
+                isSelected={selectedIndex === index}
+                isHighlighted={highlightIndices.includes(index)}
+                isDragging={drag?.index === index}
+                isInteractive={isInteractive}
+                rankLabel={showRankLabel ? String(rank) : undefined}
+                fileLabel={showFileLabel ? file : undefined}
+                onClick={() => onSquareClick?.(index, square)}
+                onPieceDragStart={startDrag}
+              />
+            );
+          }),
+        )}
       </div>
- 
+
       {drag && draggedPiece && <DragGhost drag={drag} piece={draggedPiece} ghostRef={ghostRef} />}
     </div>
   );

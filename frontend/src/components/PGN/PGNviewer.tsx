@@ -1,80 +1,63 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useMemo, useRef } from "react";
+
+import type { MoveHistoryEntry } from "@/lib/chessboard/history";
 
 interface PGNViewerProps {
-  moves: string[]; // SAN moves
-  currentPly: number; // 0 = initial position, 1 = after white's first move ...
+  entries: MoveHistoryEntry[];
+  currentPly: number;
   onSelectPly: (ply: number) => void;
 }
 
 export default function PGNViewer({
-  moves,
+  entries,
   currentPly,
   onSelectPly,
 }: PGNViewerProps) {
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
 
-  const pairs = useMemo(() => {
-    const result: {
+  const movePairs = useMemo(() => {
+    const pairs: {
       moveNumber: number;
-      white: { san: string; ply: number };
-      black?: { san: string; ply: number };
+      white: MoveHistoryEntry;
+      black?: MoveHistoryEntry;
     }[] = [];
 
-    for (let i = 0; i < moves.length; i += 2) {
-      result.push({
-        moveNumber: Math.floor(i / 2) + 1,
-        white: {
-          san: moves[i],
-          ply: i + 1,
-        },
-        black: moves[i + 1]
-          ? {
-              san: moves[i + 1],
-              ply: i + 2,
-            }
-          : undefined,
+    for (let index = 0; index < entries.length; index += 2) {
+      pairs.push({
+        moveNumber: Math.floor(index / 2) + 1,
+        white: entries[index],
+        black: entries[index + 1],
       });
     }
 
-    return result;
-  }, [moves]);
+    return pairs;
+  }, [entries]);
 
   useEffect(() => {
     activeMoveRef.current?.scrollIntoView({
-      block: 'nearest',
-      behavior: 'smooth',
+      block: "nearest",
+      behavior: "smooth",
     });
   }, [currentPly]);
 
   return (
-    <div className="w-72 shrink-0 rounded-lg border border-border bg-background overflow-hidden">
-      <div className="border-b border-border px-3 py-2">
-        <h2 className="text-sm font-semibold tracking-wide text-neutral-700 dark:text-neutral-200">
-          Moves
-        </h2>
-      </div>
-
-      <div className="max-h-full overflow-y-auto px-2 py-2">
-        {pairs.length === 0 ? (
-          <p className="px-2 py-1 text-sm text-neutral-500 dark:text-neutral-400">
-            No moves yet.
-          </p>
-        ) : (
-          <div className="space-y-0.5">
-            {pairs.map(({ moveNumber, white, black }) => (
+    <aside className="flex min-h-[15rem] w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 xl:h-full xl:min-h-0 xl:max-w-[20rem]">
+      <div className="flex-1 overflow-y-auto px-3 py-3">
+        {movePairs.length > 0 ? (
+          <div className="space-y-1">
+            {movePairs.map(({ moveNumber, white, black }) => (
               <div
                 key={moveNumber}
-                className="grid grid-cols-[2rem_1fr_1fr] items-center gap-1 rounded-md px-1 py-0.5"
+                className="grid grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-1.5 px-1 py-0.5"
               >
-                <span className="text-xs text-neutral-400 tabular-nums">
+                <span className="text-sm font-semibold tabular-nums text-neutral-500 dark:text-neutral-400">
                   {moveNumber}.
                 </span>
 
                 <MoveButton
-                  san={white.san}
-                  ply={white.ply}
+                  entry={white}
                   isActive={currentPly === white.ply}
                   onClick={onSelectPly}
                   ref={currentPly === white.ply ? activeMoveRef : undefined}
@@ -82,8 +65,7 @@ export default function PGNViewer({
 
                 {black ? (
                   <MoveButton
-                    san={black.san}
-                    ply={black.ply}
+                    entry={black}
                     isActive={currentPly === black.ply}
                     onClick={onSelectPly}
                     ref={currentPly === black.ply ? activeMoveRef : undefined}
@@ -94,39 +76,38 @@ export default function PGNViewer({
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
-    </div>
+    </aside>
   );
 }
 
-import { forwardRef } from 'react';
-
 interface MoveButtonProps {
-  san: string;
-  ply: number;
+  entry: MoveHistoryEntry;
   isActive: boolean;
   onClick: (ply: number) => void;
 }
 
 const MoveButton = forwardRef<HTMLButtonElement, MoveButtonProps>(
-  ({ san, ply, isActive, onClick }, ref) => {
+  ({ entry, isActive, onClick }, ref) => {
     return (
       <button
         ref={ref}
-        onClick={() => onClick(ply)}
+        type="button"
+        onClick={() => onClick(entry.ply)}
         className={[
-          'rounded px-2 py-1 text-left font-mono text-sm transition-colors',
-          'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+          "min-w-0 rounded-sm px-2 py-1.5 text-left font-mono text-sm transition",
+          "hover:bg-neutral-100 dark:hover:bg-neutral-800",
           isActive
-            ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-black'
-            : 'text-neutral-700 dark:text-neutral-300',
-        ].join(' ')}
+            ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+            : "text-neutral-700 dark:text-neutral-300",
+        ].join(" ")}
+        title={`${entry.ply}. ${entry.san}`}
       >
-        {san}
+        <span className="block truncate">{entry.san}</span>
       </button>
     );
-  }
+  },
 );
 
-MoveButton.displayName = 'MoveButton';
+MoveButton.displayName = "MoveButton";

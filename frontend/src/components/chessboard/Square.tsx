@@ -7,6 +7,8 @@ interface SquareProps {
   squareIndex: number;
   piece: SquareType;
   isDark: boolean;
+  rankLabel?: string;
+  fileLabel?: string;
   isSelected?: boolean;
   isHighlighted?: boolean;
   isDragging?: boolean;       // true when THIS square's piece is being ghost-dragged
@@ -20,6 +22,8 @@ export default function Square({
   squareIndex,
   piece,
   isDark,
+  rankLabel,
+  fileLabel,
   isSelected,
   isHighlighted,
   isDragging,
@@ -40,6 +44,28 @@ export default function Square({
         isInteractive && hasPiece ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
       ].join(' ')}
     >
+      {rankLabel ? (
+        <span
+          className={[
+            'pointer-events-none absolute left-px top-px select-none text-[10px] font-semibold sm:text-xs',
+            isDark ? 'text-light-square/90' : 'text-dark-square/80',
+          ].join(' ')}
+        >
+          {rankLabel}
+        </span>
+      ) : null}
+
+      {fileLabel ? (
+        <span
+          className={[
+            'pointer-events-none absolute bottom-px right-px select-none text-[10px] font-semibold lowercase sm:text-xs',
+            isDark ? 'text-light-square/90' : 'text-dark-square/80',
+          ].join(' ')}
+        >
+          {fileLabel}
+        </span>
+      ) : null}
+
       {/* Legal move dot / capture target */}
       {isHighlighted && (
         hasPiece
