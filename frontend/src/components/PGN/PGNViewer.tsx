@@ -43,7 +43,7 @@ export default function PGNViewer({
   }, [currentPly]);
 
   return (
-    <aside className="flex min-h-[15rem] w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 xl:h-full xl:min-h-0 xl:max-w-[20rem]">
+    <aside className="flex min-h-60 w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 xl:h-full xl:min-h-0 xl:max-w-[20rem]">
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {movePairs.length > 0 ? (
           <div className="space-y-1">
