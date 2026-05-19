@@ -12,6 +12,7 @@ import Board from './Board';
 import ControlBar from './ControlBar';
 import PGNViewer from '../PGN/PGNViewer';
 import PromotionPicker from './PromotionPicker';
+import DrawResignBar from './DrawResignBar';
 
 interface BoardWithControlsProps {
   fen?: string;
@@ -22,6 +23,16 @@ interface BoardWithControlsProps {
   moves?: string[];
   onMove?: (uci: string) => void;
   interactionEnabled?: boolean;
+  forLiveGame?: boolean;
+  onDrawOffer?: () => void;
+  onDrawAccept?: () => void;
+  onDrawDecline?: () => void;
+  onResign?: () => void;
+  canOfferDraw?: boolean;
+  canResign?: boolean;
+  hasIncomingDrawOffer?: boolean;
+  hasOutgoingDrawOffer?: boolean;
+  actionPending?: boolean;
 }
 
 export default function BoardWithControls({
@@ -33,6 +44,16 @@ export default function BoardWithControls({
   moves: movesProp,
   onMove,
   interactionEnabled = true,
+  forLiveGame = false,
+  onDrawOffer,
+  onDrawAccept,
+  onDrawDecline,
+  onResign,
+  canOfferDraw = true,
+  canResign = true,
+  hasIncomingDrawOffer = false,
+  hasOutgoingDrawOffer = false,
+  actionPending = false,
 }: BoardWithControlsProps) {
   const isControlled = typeof onMove === 'function';
   const controlledGameState = useMemo(() => parseFen(fen), [fen]);
@@ -291,9 +312,25 @@ export default function BoardWithControls({
             />
           </div>
         ) : null}
+      
+        {forLiveGame ? (
+          <div className="order-2 xl:order-3">
+            <DrawResignBar
+              canOfferDraw={canOfferDraw}
+              canResign={canResign}
+              hasIncomingDrawOffer={hasIncomingDrawOffer}
+              hasOutgoingDrawOffer={hasOutgoingDrawOffer}
+              actionPending={actionPending}
+              onDrawOffer={onDrawOffer}
+              onDrawAccept={onDrawAccept}
+              onDrawDecline={onDrawDecline}
+              onResign={onResign}
+            />
+          </div>
+        ) : null}
 
         {pgnViewer ? (
-          <div className="order-2 mx-auto w-full max-w-[20rem] xl:order-1 xl:mx-0 xl:min-h-0 xl:max-w-[20rem] xl:flex-1">
+          <div className="order-3 mx-auto w-full max-w-[20rem] xl:order-1 xl:mx-0 xl:min-h-0 xl:max-w-[20rem] xl:flex-1">
             <PGNViewer
               entries={moveHistory}
               currentPly={currentPly}

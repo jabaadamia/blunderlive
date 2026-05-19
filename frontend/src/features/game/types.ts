@@ -15,4 +15,6 @@ export interface GameSnapshot {
   result: "1-0" | "0-1" | "1/2-1/2" | null;
   termination: string | null;
   move_count: number;
+  draw_offer_by: string | null;
+  version: number;
 }

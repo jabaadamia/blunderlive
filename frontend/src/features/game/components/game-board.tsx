@@ -16,7 +16,18 @@ interface GameBoardProps {
 
 export function GameBoard({ gameId }: GameBoardProps) {
   const { accessToken } = useAuth();
-  const { snapshot, wsStatus, error, sendMove } = useGameWebSocket(gameId);
+  const {
+    snapshot,
+    wsStatus,
+    error,
+    drawOfferState,
+    actionPending,
+    sendMove,
+    sendDrawOffer,
+    acceptDrawOffer,
+    declineDrawOffer,
+    resign,
+  } = useGameWebSocket(gameId);
 
   const myPlayerColor = useMemo(() => {
     if (!snapshot) return null;
@@ -38,6 +49,9 @@ export function GameBoard({ gameId }: GameBoardProps) {
 
   const gameOver =
     snapshot?.status === "finished" || snapshot?.status === "abandoned";
+  const canAct = Boolean(myPlayerColor) && !gameOver && wsStatus === "open";
+  const hasIncomingDrawOffer = drawOfferState === "incoming";
+  const hasOutgoingDrawOffer = drawOfferState === "outgoing";
 
   return (
     <main className="flex min-h-screen flex-col gap-4 bg-neutral-50 px-4 py-6 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
@@ -84,6 +98,16 @@ export function GameBoard({ gameId }: GameBoardProps) {
             interactionEnabled={myTurn && !gameOver}
             controlBar
             pgnViewer
+            forLiveGame={true}
+            onDrawOffer={sendDrawOffer}
+            onDrawAccept={acceptDrawOffer}
+            onDrawDecline={declineDrawOffer}
+            onResign={resign}
+            canOfferDraw={canAct && !hasIncomingDrawOffer && !hasOutgoingDrawOffer}
+            canResign={canAct}
+            hasIncomingDrawOffer={hasIncomingDrawOffer}
+            hasOutgoingDrawOffer={hasOutgoingDrawOffer}
+            actionPending={actionPending !== null}
           />
         </div>
       </div>

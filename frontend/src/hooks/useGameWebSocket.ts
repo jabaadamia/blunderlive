@@ -1,17 +1,42 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getTokenUserId } from "@/features/auth/lib/jwt";
 import { getUsableAccessToken } from "@/features/auth/lib/auth-client";
 import { applyUciMoveToSnapshot } from "@/features/game/lib/snapshot-utils";
 import type { GameSnapshot } from "@/features/game/types";
 
 export type WsStatus = "connecting" | "open" | "closed" | "error";
+export type DrawOfferState = "none" | "incoming" | "outgoing";
+export type GameActionPending =
+  | "draw_offer"
+  | "draw_accept"
+  | "draw_decline"
+  | "resign"
+  | null;
 
 interface UseGameWebSocketResult {
   snapshot: GameSnapshot | null;
   wsStatus: WsStatus;
   error: string | null;
+  drawOfferState: DrawOfferState;
+  actionPending: GameActionPending;
   sendMove: (uci: string) => void;
+  sendDrawOffer: () => void;
+  acceptDrawOffer: () => void;
+  declineDrawOffer: () => void;
+  resign: () => void;
+}
+
+function deriveDrawOfferState(
+  snapshot: GameSnapshot | null,
+  userId: string | null,
+): DrawOfferState {
+  if (!snapshot?.draw_offer_by || !userId) {
+    return "none";
+  }
+
+  return snapshot.draw_offer_by === userId ? "outgoing" : "incoming";
 }
 
 function wsBaseUrl(): string {
@@ -30,10 +55,13 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
   const [optimisticSnapshot, setOptimisticSnapshot] = useState<GameSnapshot | null>(null);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
+  const [drawOfferState, setDrawOfferState] = useState<DrawOfferState>("none");
+  const [actionPending, setActionPending] = useState<GameActionPending>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
-  const optimisticMoveCountRef = useRef<number | null>(null);
+  const optimisticVersionRef = useRef<number | null>(null);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -52,6 +80,8 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
         setError("Not authenticated");
         return;
       }
+
+      userIdRef.current = getTokenUserId(token);
 
       const base = wsBaseUrl();
       const url = `${base}/ws/games/${gameId}/ws?token=${encodeURIComponent(token)}`;
@@ -98,24 +128,39 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
                 }
                 return incoming;
               });
+              setDrawOfferState(deriveDrawOfferState(incoming, userIdRef.current));
 
               if (
-                optimisticMoveCountRef.current !== null &&
-                incoming.move_count >= optimisticMoveCountRef.current
+                optimisticVersionRef.current !== null &&
+                incoming.version >= optimisticVersionRef.current
               ) {
-                optimisticMoveCountRef.current = null;
+                optimisticVersionRef.current = null;
                 setOptimisticSnapshot(null);
               }
+
+              setActionPending(null);
             }
             break;
 
           case "move_rejected":
-            optimisticMoveCountRef.current = null;
+            optimisticVersionRef.current = null;
             setOptimisticSnapshot(null);
             setError(msg.reason ?? "Move rejected");
             break;
 
+          case "draw_offered":
+            setDrawOfferState((prev) => (prev === "outgoing" ? "outgoing" : "incoming"));
+            setActionPending(null);
+            break;
+
+          case "draw_declined":
+            setDrawOfferState("none");
+            setActionPending(null);
+            setError("Draw offer declined");
+            break;
+
           case "error":
+            setActionPending(null);
             setError(msg.detail ?? msg.code ?? "Unknown error");
             break;
 
@@ -135,6 +180,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
       ws.onclose = () => {
         if (effectCancelled || !mountedRef.current) return;
         setWsStatus("closed");
+        setActionPending(null);
       };
     }
 
@@ -144,7 +190,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
       effectCancelled = true;
       mountedRef.current = false;
       wsRef.current = null;
-      optimisticMoveCountRef.current = null;
+      optimisticVersionRef.current = null;
       // Avoid closing while CONNECTING (React Strict Mode remount triggers this and
       // surfaces a noisy "closed before connection is established" in the console).
       // Browsers only allow script-initiated close codes 1000 or 3000–4999 (not 1001).
@@ -168,6 +214,16 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
     };
   }, [gameId]);
 
+  const sendMessage = (payload: object) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setError("Connection is not open");
+      return false;
+    }
+
+    wsRef.current.send(JSON.stringify(payload));
+    return true;
+  };
+
   const sendMove = (uci: string) => {
     setError(null);
 
@@ -177,13 +233,51 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
       const nextSnapshot = applyUciMoveToSnapshot(baseSnapshot, uci);
 
       if (nextSnapshot) {
-        optimisticMoveCountRef.current = nextSnapshot.move_count;
+        optimisticVersionRef.current = nextSnapshot.version;
         setOptimisticSnapshot(nextSnapshot);
       }
     }
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "move", uci }));
+    void sendMessage({ type: "move", uci });
+  };
+
+  const sendDrawOffer = () => {
+    setError(null);
+    setActionPending("draw_offer");
+    setDrawOfferState("outgoing");
+
+    if (!sendMessage({ type: "draw_offer" })) {
+      setActionPending(null);
+      setDrawOfferState(deriveDrawOfferState(confirmedSnapshot, userIdRef.current));
+    }
+  };
+
+  const acceptDrawOffer = () => {
+    setError(null);
+    setActionPending("draw_accept");
+
+    if (!sendMessage({ type: "draw_accepted" })) {
+      setActionPending(null);
+    }
+  };
+
+  const declineDrawOffer = () => {
+    setError(null);
+    setActionPending("draw_decline");
+    setDrawOfferState("none");
+
+    if (!sendMessage({ type: "draw_decline" })) {
+      setActionPending(null);
+      setDrawOfferState(deriveDrawOfferState(confirmedSnapshot, userIdRef.current));
+    }
+  };
+
+  const resign = () => {
+    setError(null);
+    setActionPending("resign");
+
+    if (!sendMessage({ type: "resign" })) {
+      setActionPending(null);
     }
   };
 
@@ -191,6 +285,12 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
     snapshot: optimisticSnapshot ?? confirmedSnapshot,
     wsStatus,
     error,
+    drawOfferState,
+    actionPending,
     sendMove,
+    sendDrawOffer,
+    acceptDrawOffer,
+    declineDrawOffer,
+    resign,
   };
 }
