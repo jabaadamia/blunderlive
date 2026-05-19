@@ -237,10 +237,10 @@ class MatchmakingRepository:
 
         return GameSnapshot.model_validate_json(payload)
 
-    async def update_game_snapshot(
+    async def save_game_snapshot(
         self,
         *,
-        previous_move_count: int,
+        expected_version: int,
         snapshot: GameSnapshot,
     ) -> bool:
         snapshot_key = self._game_snapshot_key(snapshot.game_id)
@@ -259,7 +259,7 @@ class MatchmakingRepository:
                         current_payload
                     )
 
-                    if current_snapshot.move_count != previous_move_count:
+                    if current_snapshot.version != expected_version:
                         await pipe.unwatch()
                         return False
 

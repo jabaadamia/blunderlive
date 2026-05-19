@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from ..domain.enums import GameResult, GameResult, GameStatus, TerminationType
+
 from ..chess.service import ChessGameService
-from ..domain.exceptions import ConcurrentMoveConflictError, PlayerNotInGameError
+from ..domain.exceptions import ConcurrentMoveConflictError, GameAlreadyFinishedError, InvalidDrawStateError, PlayerNotInGameError
 from ..domain.models import GameSnapshot
 from ..matchmaking.repository import MatchmakingRepository
 
@@ -31,6 +33,9 @@ class GameSessionService:
             game_id=game_id,
         )
 
+        if snapshot.status != GameStatus.ACTIVE:
+            raise GameAlreadyFinishedError("game_already_finished")
+
         if player_id not in {
             snapshot.white.user_id,
             snapshot.black.user_id,
@@ -43,14 +48,170 @@ class GameSessionService:
             uci_move=uci_move,
         )
 
-        saved = await self.repository.update_game_snapshot(
-            previous_move_count=snapshot.move_count,
+        updated_snapshot = updated_snapshot.model_copy(
+            update={
+                "version": snapshot.version + 1,
+                "draw_offer_by": None,
+            }
+        )
+
+        saved = await self.repository.save_game_snapshot(
+            expected_version=snapshot.version,
             snapshot=updated_snapshot,
         )
 
         if not saved:
-            raise ConcurrentMoveConflictError(
-                "concurrent_move_conflict",
-            )
+            raise ConcurrentMoveConflictError("concurrent_move_conflict")
+
+        return updated_snapshot
+
+    async def offer_draw(
+        self,
+        *,
+        game_id: UUID,
+        player_id: UUID,
+    ) -> GameSnapshot:
+        snapshot = await self.repository.fetch_game_snapshot(
+            game_id=game_id,
+        )
+
+        if snapshot.status != GameStatus.ACTIVE:
+            raise GameAlreadyFinishedError("game_already_finished")
+
+        if player_id not in {
+            snapshot.white.user_id,
+            snapshot.black.user_id,
+        }:
+            raise PlayerNotInGameError("player_not_in_game")
+
+        updated_snapshot = snapshot.model_copy(
+            update={
+                "draw_offer_by": player_id,
+                "version": snapshot.version + 1,
+            }
+        )
+
+        saved = await self.repository.save_game_snapshot(
+            expected_version=snapshot.version,
+            snapshot=updated_snapshot,
+        )
+
+        if not saved:
+            raise ConcurrentMoveConflictError("concurrent_state_conflict")
+
+        return updated_snapshot
+    
+    async def accept_draw(
+        self,
+        *,
+        game_id: UUID,
+        player_id: UUID,
+    ) -> GameSnapshot:
+        snapshot = await self.repository.fetch_game_snapshot(
+            game_id=game_id,
+        )
+
+        if snapshot.status != GameStatus.ACTIVE:
+            raise GameAlreadyFinishedError("game_already_finished")
+
+        if snapshot.draw_offer_by is None:
+            raise InvalidDrawStateError("no_draw_offer")
+
+        if snapshot.draw_offer_by == player_id:
+            raise InvalidDrawStateError("cannot_accept_own_draw")
+
+        updated_snapshot = snapshot.model_copy(
+            update={
+                "status": GameStatus.FINISHED,
+                "result": GameResult.DRAW,
+                "termination": TerminationType.DRAW_AGREEMENT,
+                "draw_offer_by": None,
+                "version": snapshot.version + 1,
+            }
+        )
+
+        saved = await self.repository.save_game_snapshot(
+            expected_version=snapshot.version,
+            snapshot=updated_snapshot,
+        )
+
+        if not saved:
+            raise ConcurrentMoveConflictError("concurrent_state_conflict")
+
+        return updated_snapshot
+
+    async def decline_draw(
+        self,
+        *,
+        game_id: UUID,
+        player_id: UUID,
+    ) -> GameSnapshot:
+        snapshot = await self.repository.fetch_game_snapshot(
+            game_id=game_id,
+        )
+
+        if snapshot.status != GameStatus.ACTIVE:
+            raise GameAlreadyFinishedError("game_already_finished")
+
+        if snapshot.draw_offer_by is None:
+            raise InvalidDrawStateError("no_draw_offer")
+
+        if snapshot.draw_offer_by == player_id:
+            raise InvalidDrawStateError("cannot_decline_own_draw")
+
+        updated_snapshot = snapshot.model_copy(
+            update={
+                "draw_offer_by": None,
+                "version": snapshot.version + 1,
+            }
+        )
+
+        saved = await self.repository.save_game_snapshot(
+            expected_version=snapshot.version,
+            snapshot=updated_snapshot,
+        )
+
+        if not saved:
+            raise ConcurrentMoveConflictError("concurrent_state_conflict")
+
+        return updated_snapshot
+
+    async def resign_game(
+        self,
+        *,
+        game_id: UUID,
+        player_id: UUID,
+    ) -> GameSnapshot:
+        snapshot = await self.repository.fetch_game_snapshot(
+            game_id=game_id,
+        )
+
+        if snapshot.status != GameStatus.ACTIVE:
+            raise GameAlreadyFinishedError("game_already_finished")
+
+        if player_id == snapshot.white.user_id:
+            result = GameResult.BLACK_WIN
+        elif player_id == snapshot.black.user_id:
+            result = GameResult.WHITE_WIN
+        else:
+            raise PlayerNotInGameError("player_not_in_game")
+
+        updated_snapshot = snapshot.model_copy(
+            update={
+                "status": GameStatus.FINISHED,
+                "result": result,
+                "termination": TerminationType.RESIGNATION,
+                "draw_offer_by": None,
+                "version": snapshot.version + 1,
+            }
+        )
+
+        saved = await self.repository.save_game_snapshot(
+            expected_version=snapshot.version,
+            snapshot=updated_snapshot,
+        )
+
+        if not saved:
+            raise ConcurrentMoveConflictError("concurrent_state_conflict")
 
         return updated_snapshot

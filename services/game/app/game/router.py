@@ -14,12 +14,19 @@ from ..dependencies import (
 from ..domain.exceptions import (
     ConcurrentMoveConflictError,
     GameNotFoundError,
+    GameAlreadyFinishedError,
+    InvalidDrawStateError,
     IllegalMoveError,
     NotPlayersTurnError,
+    PlayerNotInGameError,
 )
 from ..schemas.ws_in import (
+    DrawAcceptedMessage,
+    DrawDeclineMessage,
     InboundWebSocketMessage,
     MoveMessage,
+    DrawOfferMessage,
+    ResignMessage,
     PingMessage,
 )
 from ..schemas.ws_out import (
@@ -27,6 +34,8 @@ from ..schemas.ws_out import (
     GameOverMessage,
     GameStateMessage,
     MoveAcceptedMessage,
+    DrawOfferedMessage,
+    DrawDeclinedMessage,
     OutboundWebSocketMessage,
     PongMessage,
 )
@@ -121,11 +130,63 @@ async def game_websocket(
                         game_id=game_id,
                         message=outbound,
                     )
+                
+                if isinstance(message, DrawOfferMessage):
+                    await session_service.offer_draw(
+                        game_id=game_id,
+                        player_id=player.user_id,
+                    )
+
+                    await manager.broadcast(
+                        game_id=game_id,
+                        message=DrawOfferedMessage(),
+                    )
+
+
+                if isinstance(message, DrawDeclineMessage):
+                    await session_service.decline_draw(
+                        game_id=game_id,
+                        player_id=player.user_id,
+                    )
+
+                    await manager.broadcast(
+                        game_id=game_id,
+                        message=DrawDeclinedMessage(reason="declined_by_opponent"),
+                    )
+                
+                if isinstance(message, DrawAcceptedMessage):
+                    updated_snapshot = await session_service.accept_draw(
+                        game_id=game_id,
+                        player_id=player.user_id,
+                    )
+
+                    await manager.broadcast(
+                        game_id=game_id,
+                        message=GameOverMessage(
+                            state=updated_snapshot,
+                        ),
+                    )
+
+                if isinstance(message, ResignMessage):
+                    updated_snapshot = await session_service.resign_game(
+                        game_id=game_id,
+                        player_id=player.user_id,
+                    )
+
+                    await manager.broadcast(
+                        game_id=game_id,
+                        message=GameOverMessage(
+                            state=updated_snapshot,
+                        ),
+                    )
 
             except (
+                GameAlreadyFinishedError,
                 IllegalMoveError,
                 NotPlayersTurnError,
                 ConcurrentMoveConflictError,
+                InvalidDrawStateError,
+                PlayerNotInGameError,
             ) as exc:
                 await send_message(
                     websocket,

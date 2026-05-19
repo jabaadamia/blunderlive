@@ -13,6 +13,12 @@ class ResignMessage(BaseModel):
 class DrawOfferMessage(BaseModel):
     type: Literal["draw_offer"]
 
+class DrawAcceptedMessage(BaseModel):
+    type: Literal["draw_accepted"]
+
+class DrawDeclineMessage(BaseModel):
+    type: Literal["draw_decline"]
+
 class PingMessage(BaseModel):
     type: Literal["ping"]
 
@@ -21,6 +27,8 @@ InboundWebSocketMessage = Annotated[
     MoveMessage
     | ResignMessage
     | DrawOfferMessage
+    | DrawAcceptedMessage
+    | DrawDeclineMessage
     | PingMessage,
     Field(discriminator="type"),
 ]

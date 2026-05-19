@@ -23,3 +23,6 @@ class PlayerNotInGameError(GameException):
 
 class ConcurrentMoveConflictError(GameException):
     """Raised when game state changed concurrently."""
+
+class InvalidDrawStateError(GameException):
+    """Raised when a draw offer is in an invalid state for the attempted action."""

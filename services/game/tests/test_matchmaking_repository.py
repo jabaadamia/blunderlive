@@ -177,6 +177,7 @@ async def test_try_create_match_assigns_active_games_and_removes_queue_entries()
         black=GameParticipant(user_id=user_two, color=PlayerColor.BLACK),
         moves=[],
         move_count=0,
+        version=0,
     )
 
     success = await repository.try_create_match(
@@ -208,7 +209,7 @@ async def test_try_create_match_assigns_active_games_and_removes_queue_entries()
     assert stored_snapshot.black.user_id == user_two
 
 @pytest.mark.asyncio
-async def test_update_game_snapshot_clears_active_games_when_finished() -> None:
+async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
     redis = Redis.from_url(
         os.environ["REDIS_URL"],
         encoding="utf-8",
@@ -235,7 +236,8 @@ async def test_update_game_snapshot_clears_active_games_when_finished() -> None:
             user_id=user_two,
             color=PlayerColor.BLACK,
         ),
-        move_count=1,
+        move_count=0,
+        version=0,
     )
 
     await repository.create_game_snapshot(
@@ -248,6 +250,7 @@ async def test_update_game_snapshot_clears_active_games_when_finished() -> None:
             "fen": "finished-fen",
             "moves": ["e2e4", "e7e5"],
             "move_count": 2,
+            "version": 1,
         },
     )
 
@@ -261,8 +264,8 @@ async def test_update_game_snapshot_clears_active_games_when_finished() -> None:
         str(initial_snapshot.game_id),
     )
 
-    await repository.update_game_snapshot(
-        previous_move_count=1,
+    await repository.save_game_snapshot(
+        expected_version=initial_snapshot.version,
         snapshot=finished_snapshot,
     )
 
@@ -283,3 +286,50 @@ async def test_update_game_snapshot_clears_active_games_when_finished() -> None:
     assert player_one_active is None
     assert player_two_active is None
     assert stored_snapshot.status == GameStatus.FINISHED
+
+@pytest.mark.asyncio
+async def test_save_game_snapshot_rejects_stale_version() -> None:
+    redis = Redis.from_url(
+        os.environ["REDIS_URL"],
+        encoding="utf-8",
+        decode_responses=True,
+    )
+
+    await redis.flushdb()
+
+    repository = MatchmakingRepository(redis)
+
+    snapshot = GameSnapshot(
+        game_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        status=GameStatus.ACTIVE,
+        fen="startpos",
+        created_at=datetime.now(UTC),
+        white=GameParticipant(
+            user_id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            color=PlayerColor.WHITE,
+        ),
+        black=GameParticipant(
+            user_id=UUID("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+            color=PlayerColor.BLACK,
+        ),
+        version=2,
+    )
+
+    await repository.create_game_snapshot(
+        snapshot=snapshot,
+    )
+
+    updated_snapshot = snapshot.model_copy(
+        update={
+            "version": 3,
+        }
+    )
+
+    saved = await repository.save_game_snapshot(
+        expected_version=1,
+        snapshot=updated_snapshot,
+    )
+
+    await redis.aclose()
+
+    assert saved is False
