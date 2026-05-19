@@ -8,6 +8,8 @@ import type { GameSnapshot } from "@/features/game/types";
 
 export type WsStatus = "connecting" | "open" | "closed" | "error";
 export type DrawOfferState = "none" | "incoming" | "outgoing";
+const WS_APP_SUBPROTOCOL = "blunderlive-game";
+const WS_BEARER_SUBPROTOCOL_PREFIX = "bearer.";
 export type GameActionPending =
   | "draw_offer"
   | "draw_accept"
@@ -84,8 +86,11 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
       userIdRef.current = getTokenUserId(token);
 
       const base = wsBaseUrl();
-      const url = `${base}/ws/games/${gameId}/ws?token=${encodeURIComponent(token)}`;
-      ws = new WebSocket(url);
+      const url = `${base}/ws/games/${gameId}/ws`;
+      ws = new WebSocket(url, [
+        WS_APP_SUBPROTOCOL,
+        `${WS_BEARER_SUBPROTOCOL_PREFIX}${token}`,
+      ]);
       wsRef.current = ws;
       setWsStatus("connecting");
 

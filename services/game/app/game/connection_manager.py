@@ -1,4 +1,5 @@
 from collections import defaultdict
+from inspect import signature
 from uuid import UUID
 
 from fastapi import WebSocket
@@ -7,12 +8,25 @@ from app.game.websocket import send_message
 
 from ..schemas.ws_out import OutboundWebSocketMessage
 
+WS_APP_SUBPROTOCOL = "blunderlive-game"
+
 class ConnectionManager:
     def __init__(self) -> None:
         self._connections: dict[UUID, set[WebSocket]] = defaultdict(set)
 
     async def connect(self, *, game_id: UUID, websocket: WebSocket) -> None:
-        await websocket.accept()
+        scope = getattr(websocket, "scope", {}) or {}
+        requested_subprotocols = set(scope.get("subprotocols", []))
+        accepted_subprotocol = (
+            WS_APP_SUBPROTOCOL if WS_APP_SUBPROTOCOL in requested_subprotocols else None
+        )
+        accept = websocket.accept
+
+        if "subprotocol" in signature(accept).parameters:
+            await accept(subprotocol=accepted_subprotocol)
+        else:
+            await accept()
+
         self._connections[game_id].add(websocket)
 
     def disconnect(self, *, game_id: UUID, websocket: WebSocket) -> None:

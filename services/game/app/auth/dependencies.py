@@ -7,6 +7,8 @@ from .models import PlayerIdentity
 from .verifier import TokenVerificationError, verify_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
+WS_APP_SUBPROTOCOL = "blunderlive-game"
+WS_BEARER_SUBPROTOCOL_PREFIX = "bearer."
 
 
 def get_current_player_http(
@@ -35,7 +37,13 @@ async def get_current_player_ws(
     websocket: WebSocket,
     settings: Settings = Depends(get_settings_dependency),
 ) -> PlayerIdentity:
-    token = websocket.query_params.get("token")
+    token: str | None = None
+
+    for subprotocol in websocket.scope.get("subprotocols", []):
+        if subprotocol.startswith(WS_BEARER_SUBPROTOCOL_PREFIX):
+            token = subprotocol.removeprefix(WS_BEARER_SUBPROTOCOL_PREFIX)
+            break
+
     if not token:
         authorization = websocket.headers.get("authorization", "")
         if authorization.lower().startswith("bearer "):

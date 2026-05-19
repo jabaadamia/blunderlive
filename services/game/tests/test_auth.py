@@ -74,12 +74,15 @@ def test_get_current_player_http_rejects_missing_token() -> None:
     assert response.status_code == 401
 
 
-def test_get_current_player_ws_accepts_query_param_token() -> None:
+def test_get_current_player_ws_accepts_token_from_subprotocol() -> None:
     token = issue_access_token("00adccda-ddd2-4a00-ba0b-31607bca61d6")
     app = build_test_app()
 
     with TestClient(app) as client:
-        with client.websocket_connect(f"/ws/protected?token={token}") as websocket:
+        with client.websocket_connect(
+            "/ws/protected",
+            subprotocols=["blunderlive-game", f"bearer.{token}"],
+        ) as websocket:
             message = websocket.receive_json()
 
     assert message == {"user_id": "00adccda-ddd2-4a00-ba0b-31607bca61d6"}
