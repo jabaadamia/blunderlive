@@ -55,7 +55,13 @@ class RatingHistory(models.Model):
         blank=True,
         related_name="rating_history_as_opponent",
     )
-    game_id = models.UUIDField(null=True, blank=True) # TODO: maybe consider moving to FK when game model is implemented
+    game = models.ForeignKey(
+        "games.Game",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rating_history_entries",
+    )
     notes = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
@@ -63,7 +69,7 @@ class RatingHistory(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["source", "created_at"]),
-            models.Index(fields=["game_id"]),
+            models.Index(fields=["game"]),
         ]
 
     def __str__(self) -> str:
