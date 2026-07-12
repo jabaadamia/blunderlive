@@ -140,6 +140,7 @@ test-core:
 	@set -e; \
 	$(MAKE) ensure-dev-jwt; \
 	$(TEST_COMPOSE) up -d postgres; \
+	$(TEST_COMPOSE) build core; \
 	status=0; \
 	$(TEST_COMPOSE) run --rm -e DJANGO_SETTINGS_MODULE=config.settings.local core pytest || status=$$?; \
 	$(TEST_COMPOSE) down -v --remove-orphans; \
