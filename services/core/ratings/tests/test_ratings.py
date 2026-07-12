@@ -1,8 +1,8 @@
-import uuid
-
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from games.models import Game, Result, Termination
 from ratings.models import Rating, RatingCategory, RatingHistory, RatingHistorySource
 from ratings.services import (
     apply_game_result,
@@ -81,12 +81,26 @@ def test_ensure_default_ratings_for_user_is_idempotent(rated_user):
 
 @pytest.mark.django_db
 def test_apply_game_result_updates_both_ratings_and_history(rated_user, opponent_user):
+    game = Game.objects.create(
+        white_player=rated_user,
+        black_player=opponent_user,
+        result=Result.WHITE_WIN,
+        termination=Termination.CHECKMATE,
+        rated=True,
+        rating_category=RatingCategory.RAPID,
+        initial_time_ms=600000,
+        increment_ms=0,
+        ended_at=timezone.now(),
+        move_count=42,
+        fen_final="final-fen",
+        pgn="1. e4 e5 1-0",
+    )
     apply_game_result(
         white_user=rated_user,
         black_user=opponent_user,
         category=RatingCategory.RAPID,
         result="1-0",
-        game_id=uuid.uuid4(),
+        game=game,
     )
 
     winner_rating = Rating.objects.get(user=rated_user, category=RatingCategory.RAPID)
@@ -97,6 +111,7 @@ def test_apply_game_result_updates_both_ratings_and_history(rated_user, opponent
     assert winner_rating.games_played == 1
     assert loser_rating.games_played == 1
     assert RatingHistory.objects.count() == 2
+    assert RatingHistory.objects.filter(game=game).count() == 2
 
 
 @pytest.mark.django_db

@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from math import pow
 from typing import Iterable
-from uuid import UUID
 
 from django.db import transaction
 
+from games.models import Game
 from ratings.models import Rating, RatingCategory, RatingHistory, RatingHistorySource
 from users.models import User
 
@@ -18,10 +18,12 @@ DEFAULT_K_FACTOR = 32
 
 @dataclass(frozen=True)
 class RatingUpdateResult:
-    player_rating: Rating
-    opponent_rating: Rating
-    player_delta: int
-    opponent_delta: int
+    white_rating: Rating
+    black_rating: Rating
+    white_previous: int
+    white_delta: int
+    black_previous: int
+    black_delta: int
 
 
 def ensure_default_ratings_for_user(user: User) -> list[Rating]:
@@ -76,7 +78,7 @@ def apply_game_result(
     black_user: User,
     category: str,
     result: str,
-    game_id: UUID | None = None,
+    game: Game | None = None,
     k_factor: int = DEFAULT_K_FACTOR,
 ) -> RatingUpdateResult:
     if category not in RatingCategory.values:
@@ -84,8 +86,20 @@ def apply_game_result(
     if result not in {"1-0", "0-1", "1/2-1/2"}:
         raise ValueError("Unsupported game result.")
 
-    white_rating = get_or_create_rating(white_user, category)
-    black_rating = get_or_create_rating(black_user, category)
+    get_or_create_rating(white_user, category)
+    get_or_create_rating(black_user, category)
+
+    locked_ratings = list(
+        Rating.objects.select_for_update()
+        .filter(
+            user__in=[white_user, black_user],
+            category=category,
+        )
+        .order_by("user_id")
+    )
+    ratings_by_user_id = {rating.user_id: rating for rating in locked_ratings}
+    white_rating = ratings_by_user_id[white_user.id]
+    black_rating = ratings_by_user_id[black_user.id]
 
     if result == "1-0":
         white_score = Decimal("1")
@@ -118,7 +132,7 @@ def apply_game_result(
         new_value=white_new,
         delta=white_new - white_old,
         opponent_user=black_user,
-        game_id=game_id,
+        game=game,
         notes=f"Result: {result}",
     )
     RatingHistory.objects.create(
@@ -128,13 +142,15 @@ def apply_game_result(
         new_value=black_new,
         delta=black_new - black_old,
         opponent_user=white_user,
-        game_id=game_id,
+        game=game,
         notes=f"Result: {result}",
     )
 
     return RatingUpdateResult(
-        player_rating=white_rating,
-        opponent_rating=black_rating,
-        player_delta=white_new - white_old,
-        opponent_delta=black_new - black_old,
+        white_rating=white_rating,
+        black_rating=black_rating,
+        white_previous=white_old,
+        white_delta=white_new - white_old,
+        black_previous=black_old,
+        black_delta=black_new - black_old,
     )

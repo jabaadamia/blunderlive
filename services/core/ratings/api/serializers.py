@@ -11,6 +11,7 @@ class RatingSerializer(serializers.ModelSerializer):
 
 class RatingHistorySerializer(serializers.ModelSerializer):
     category = serializers.CharField(source="rating.category", read_only=True)
+    game_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = RatingHistory
