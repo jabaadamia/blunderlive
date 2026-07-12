@@ -34,6 +34,7 @@ LOCAL_APPS = [
     "accounts.apps.AccountsConfig",
     "users.apps.UsersConfig",
     "ratings.apps.RatingsConfig",
+    "games.apps.GamesConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -71,6 +72,11 @@ ASGI_APPLICATION = "config.asgi.application"
 CORE_DATABASE_URL = os.environ["CORE_DATABASE_URL"]
 CORE_JWT_PRIVATE_KEY_PATH = os.environ["CORE_JWT_PRIVATE_KEY_PATH"]
 CORE_JWT_PUBLIC_KEY_PATH = os.environ["CORE_JWT_PUBLIC_KEY_PATH"]
+CORE_REDIS_URL = os.environ.get("REDIS_URL")
+CORE_GAMES_FINISHED_STREAM = os.environ.get("CORE_GAMES_FINISHED_STREAM", "games.finished")
+CORE_GAMES_PROCESSED_STREAM = os.environ.get("CORE_GAMES_PROCESSED_STREAM", "games.processed")
+CORE_GAMES_FAILED_STREAM = os.environ.get("CORE_GAMES_FAILED_STREAM", "games.failed")
+CORE_GAMES_CONSUMER_GROUP = os.environ.get("CORE_GAMES_CONSUMER_GROUP", "core-game-processing")
 
 DATABASES = {
     "default": dj_database_url.parse(CORE_DATABASE_URL, conn_max_age=600)

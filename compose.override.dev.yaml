@@ -26,6 +26,19 @@ services:
       - core_static:/app/staticfiles
       - core_media:/app/media
 
+  core-worker:
+    build:
+      context: .
+      dockerfile: services/core/Dockerfile
+      target: dev
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      CORE_DEBUG: ${CORE_DEBUG:-True}
+    volumes:
+      - ./services/core:/app
+      - core_static:/app/staticfiles
+      - core_media:/app/media
+
   game:
     build:
       context: .

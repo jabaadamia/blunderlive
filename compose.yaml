@@ -43,6 +43,11 @@ services:
       CORE_DEBUG: ${CORE_DEBUG:-False}
       CORE_ALLOWED_HOSTS: ${CORE_ALLOWED_HOSTS}
       CORE_DATABASE_URL: ${CORE_DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CORE_GAMES_FINISHED_STREAM: ${CORE_GAMES_FINISHED_STREAM:-games.finished}
+      CORE_GAMES_PROCESSED_STREAM: ${CORE_GAMES_PROCESSED_STREAM:-games.processed}
+      CORE_GAMES_FAILED_STREAM: ${CORE_GAMES_FAILED_STREAM:-games.failed}
+      CORE_GAMES_CONSUMER_GROUP: ${CORE_GAMES_CONSUMER_GROUP:-core-game-processing}
       CORE_CSRF_TRUSTED_ORIGINS: ${CORE_CSRF_TRUSTED_ORIGINS:-}
       CORE_SECURE_COOKIES: ${CORE_SECURE_COOKIES:-False}
       CORE_SECURE_SSL_REDIRECT: ${CORE_SECURE_SSL_REDIRECT:-False}
@@ -76,6 +81,38 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+  core-worker:
+    build:
+      context: .
+      dockerfile: services/core/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    init: true
+    environment:
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.production}
+      CORE_SECRET_KEY: ${CORE_SECRET_KEY}
+      CORE_JWT_PRIVATE_KEY_PATH: ${CORE_JWT_PRIVATE_KEY_PATH}
+      CORE_JWT_PUBLIC_KEY_PATH: ${CORE_JWT_PUBLIC_KEY_PATH}
+      CORE_DEBUG: ${CORE_DEBUG:-False}
+      CORE_ALLOWED_HOSTS: ${CORE_ALLOWED_HOSTS}
+      CORE_DATABASE_URL: ${CORE_DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CORE_GAMES_FINISHED_STREAM: ${CORE_GAMES_FINISHED_STREAM:-games.finished}
+      CORE_GAMES_PROCESSED_STREAM: ${CORE_GAMES_PROCESSED_STREAM:-games.processed}
+      CORE_GAMES_FAILED_STREAM: ${CORE_GAMES_FAILED_STREAM:-games.failed}
+      CORE_GAMES_CONSUMER_GROUP: ${CORE_GAMES_CONSUMER_GROUP:-core-game-processing}
+    command:
+      - python
+      - manage.py
+      - process_finished_games
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./infra/dev-jwt:/run/dev-jwt:ro
 
   game:
     build:
