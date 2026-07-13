@@ -180,6 +180,16 @@ class Command(BaseCommand):
 
     @staticmethod
     def _claimed_messages(claimed) -> list[tuple[str, dict[str, str]]]:
+        if not claimed:
+            return []
+
         if isinstance(claimed, tuple):
             return list(claimed[1])
-        return list(claimed)
+
+        if isinstance(claimed, list):
+            if len(claimed) >= 2 and isinstance(claimed[0], str):
+                return list(claimed[1])
+
+            return list(claimed)
+
+        return []

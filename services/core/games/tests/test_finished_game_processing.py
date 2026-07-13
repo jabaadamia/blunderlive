@@ -252,3 +252,23 @@ def test_command_processes_claimed_pending_entries(finished_game_fields):
     assert processed_count == 1
     assert redis.added[0][0] == "games.processed"
     assert redis.acked == [("games.finished", "core-game-processing", "1-0")]
+
+
+def test_claimed_messages_accepts_redis_cursor_list_shape(finished_game_fields):
+    messages = Command._claimed_messages(
+        [
+            "0-0",
+            [("1-0", finished_game_fields)],
+            [],
+        ]
+    )
+
+    assert messages == [("1-0", finished_game_fields)]
+
+
+def test_claimed_messages_accepts_plain_message_list_shape(finished_game_fields):
+    messages = Command._claimed_messages(
+        [("1-0", finished_game_fields)]
+    )
+
+    assert messages == [("1-0", finished_game_fields)]
