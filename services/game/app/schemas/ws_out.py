@@ -29,6 +29,21 @@ class GameOverMessage(BaseModel):
     type: Literal["game_over"] = "game_over"
     state: GameSnapshot
 
+class RatingChange(BaseModel):
+    before: int
+    after: int
+    delta: int
+
+class RatingUpdateConfirmedMessage(BaseModel):
+    type: Literal["rating_update_confirmed"] = "rating_update_confirmed"
+    game_id: str
+    white_player_id: str
+    black_player_id: str
+    rated: bool
+    rating_category: str | None = None
+    white_rating_change: RatingChange | None = None
+    black_rating_change: RatingChange | None = None
+
 class ErrorMessage(BaseModel):
     type: Literal["error"] = "error"
     code: str
@@ -45,6 +60,7 @@ OutboundWebSocketMessage = Annotated[
     | DrawDeclinedMessage
     | DrawOfferedMessage
     | GameOverMessage
+    | RatingUpdateConfirmedMessage
     | ErrorMessage
     | PongMessage,
     Field(discriminator="type"),

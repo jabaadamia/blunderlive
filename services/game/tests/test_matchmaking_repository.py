@@ -280,12 +280,16 @@ async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
     stored_snapshot = await repository.fetch_game_snapshot(
         game_id=initial_snapshot.game_id,
     )
+    pending_finished_games = await repository.fetch_pending_finished_games()
 
     await redis.aclose()
 
     assert player_one_active is None
     assert player_two_active is None
     assert stored_snapshot.status == GameStatus.FINISHED
+    assert [snapshot.game_id for snapshot in pending_finished_games] == [
+        initial_snapshot.game_id,
+    ]
 
 @pytest.mark.asyncio
 async def test_save_game_snapshot_rejects_stale_version() -> None:

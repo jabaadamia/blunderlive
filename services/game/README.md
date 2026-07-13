@@ -36,8 +36,3 @@ Production must override it with real mounted secret files via:
 - `CORE_JWT_PRIVATE_KEY_PATH`
 - `CORE_JWT_PUBLIC_KEY_PATH`
 - `GAME_JWT_PUBLIC_KEY_PATH`
-
-## Reserved Setting
-
-`core_internal_base_url` is configured in the game service now, but intentionally
-unused until internal service-to-service game result flows are implemented.

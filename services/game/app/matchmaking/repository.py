@@ -16,6 +16,15 @@ def build_time_control_bucket(rated: bool, initial_time_ms: int, increment_ms: i
     return f"{rated_label}_{initial_time_ms}_{increment_ms}"
 
 
+def parse_time_control_bucket(queue_bucket: str) -> tuple[bool, int, int]:
+    rated_label, initial_time_ms, increment_ms = queue_bucket.split("_", maxsplit=2)
+    return (
+        rated_label == "rated",
+        int(initial_time_ms),
+        int(increment_ms),
+    )
+
+
 class MatchmakingRepositoryError(Exception):
     """Base error for matchmaking repository operations."""
 
@@ -58,6 +67,10 @@ class MatchmakingRepository:
     @staticmethod
     def _game_snapshot_key(game_id: UUID) -> str:
         return f"game:snapshot:{game_id}"
+
+    @staticmethod
+    def _finished_game_pending_key(game_id: UUID) -> str:
+        return f"game:finished_pending:{game_id}"
     
     @staticmethod
     def _match_found_key(user_id: UUID) -> str:
@@ -66,6 +79,10 @@ class MatchmakingRepository:
     @staticmethod
     def _bucket_scan_pattern() -> str:
         return "matchmaking:queue:*"
+
+    @staticmethod
+    def _finished_game_pending_pattern() -> str:
+        return "game:finished_pending:*"
     
     async def enqueue_player(
         self,
@@ -278,6 +295,12 @@ class MatchmakingRepository:
                             self._active_game_key(snapshot.black.user_id)
                         )
 
+                    if snapshot.status == GameStatus.FINISHED:
+                        pipe.set(
+                            self._finished_game_pending_key(snapshot.game_id),
+                            snapshot.model_dump_json(),
+                        )
+
                     await pipe.execute()
                     return True
 
@@ -317,3 +340,19 @@ class MatchmakingRepository:
             ),
             active_game_id=active_game_id,
         )
+
+    async def fetch_pending_finished_games(self, *, limit: int = 20) -> list[GameSnapshot]:
+        snapshots: list[GameSnapshot] = []
+
+        async for key in self.redis.scan_iter(match=self._finished_game_pending_pattern()):
+            payload = await self.redis.get(key)
+            if payload:
+                snapshots.append(GameSnapshot.model_validate_json(payload))
+
+            if len(snapshots) >= limit:
+                break
+
+        return snapshots
+
+    async def clear_pending_finished_game(self, *, game_id: UUID) -> None:
+        await self.redis.delete(self._finished_game_pending_key(game_id))

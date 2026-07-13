@@ -70,6 +70,10 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
     assert stored_snapshot.status == GameStatus.ACTIVE
     assert stored_snapshot.white.user_id == user_one
     assert stored_snapshot.black.user_id == user_two
+    assert stored_snapshot.rated is True
+    assert stored_snapshot.rating_category == "blitz"
+    assert stored_snapshot.initial_time_ms == 300000
+    assert stored_snapshot.increment_ms == 0
 
 @pytest.mark.asyncio
 async def test_run_matchmaking_cycle_does_not_mix_rated_and_casual() -> None:

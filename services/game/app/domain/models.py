@@ -23,5 +23,9 @@ class GameSnapshot(BaseModel):
     result: GameResult | None = None
     termination: TerminationType | None = None
     move_count: int = Field(default=0, ge=0)
+    rated: bool = True
+    rating_category: str | None = None
+    initial_time_ms: int = Field(default=0, ge=0)
+    increment_ms: int = Field(default=0, ge=0)
     draw_offer_by: UUID | None = None
     version: int = Field(default=0, ge=0)

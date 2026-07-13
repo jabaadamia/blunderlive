@@ -2,6 +2,7 @@ from uuid import uuid4
 from datetime import datetime, UTC
 
 import chess
+import chess.pgn
 
 from ..domain.exceptions import GameAlreadyFinishedError, IllegalMoveError, NotPlayersTurnError
 
@@ -15,6 +16,10 @@ class ChessGameService:
         *,
         white_player_id,
         black_player_id,
+        rated: bool = True,
+        rating_category: str | None = None,
+        initial_time_ms: int = 0,
+        increment_ms: int = 0,
     ) -> GameSnapshot:
         game_id = uuid4()
 
@@ -36,6 +41,10 @@ class ChessGameService:
             ),
             moves=[],
             move_count=0,
+            rated=rated,
+            rating_category=rating_category,
+            initial_time_ms=initial_time_ms,
+            increment_ms=increment_ms,
         )
 
         return snapshot
@@ -120,5 +129,25 @@ class ChessGameService:
             "termination": termination,
             "last_move_at": datetime.now(UTC),
         })
+
+    def build_pgn(self, *, snapshot: GameSnapshot) -> str:
+        board = chess.Board()
+        game = chess.pgn.Game()
+        game.headers["Event"] = "BlunderLive game"
+        game.headers["Site"] = "BlunderLive"
+        game.headers["White"] = str(snapshot.white.user_id)
+        game.headers["Black"] = str(snapshot.black.user_id)
+        game.headers["Result"] = snapshot.result or "*"
+        game.headers["TimeControl"] = (
+            f"{snapshot.initial_time_ms // 1000}+{snapshot.increment_ms // 1000}"
+        )
+
+        node = game
+        for uci_move in snapshot.moves:
+            move = chess.Move.from_uci(uci_move)
+            node = node.add_variation(move)
+            board.push(move)
+
+        return str(game)
     
     

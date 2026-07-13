@@ -1,5 +1,18 @@
 from ..chess.service import ChessGameService
-from .repository import MatchmakingRepository
+from .repository import MatchmakingRepository, parse_time_control_bucket
+
+
+def rating_category_for_time_control(
+    *,
+    initial_time_ms: int,
+    increment_ms: int,
+) -> str:
+    estimated_game_ms = initial_time_ms + (40 * increment_ms)
+    if estimated_game_ms < 180_000:
+        return "bullet"
+    if estimated_game_ms < 600_000:
+        return "blitz"
+    return "rapid"
 
 
 class MatchmakingService:
@@ -29,10 +42,22 @@ class MatchmakingService:
 
             player_one_id = players[0]
             player_two_id = players[1]
+            rated, initial_time_ms, increment_ms = parse_time_control_bucket(bucket)
 
             snapshot = self.chess_service.create_game(
                 white_player_id=player_one_id,
                 black_player_id=player_two_id,
+                rated=rated,
+                rating_category=(
+                    rating_category_for_time_control(
+                        initial_time_ms=initial_time_ms,
+                        increment_ms=increment_ms,
+                    )
+                    if rated
+                    else None
+                ),
+                initial_time_ms=initial_time_ms,
+                increment_ms=increment_ms,
             )
 
             success = await self.repository.try_create_match(
