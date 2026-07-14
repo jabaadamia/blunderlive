@@ -138,6 +138,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "auth", "description": "Authentication-related endpoints."},
         {"name": "users", "description": "User-related endpoints."},
         {"name": "ratings", "description": "User ratings and rating history."},
+        {"name": "games", "description": "Finished games."},
     ],
     "APPEND_COMPONENTS": {
         "securitySchemes": {

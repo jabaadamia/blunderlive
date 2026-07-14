@@ -83,7 +83,7 @@ class Game(models.Model):
     class Meta:
         ordering = ["-started_at"]
         indexes = [
-            models.Index(fields=["started_at"]),
+            models.Index(fields=["-started_at", "-id"]),
             models.Index(fields=["white_player"]),
             models.Index(fields=["black_player"]),
             models.Index(fields=["rated", "rating_category"]),

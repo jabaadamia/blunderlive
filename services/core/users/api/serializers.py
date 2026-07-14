@@ -19,3 +19,9 @@ class UserSerializer(serializers.ModelSerializer):
             "is_staff",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class PlayerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username"]
