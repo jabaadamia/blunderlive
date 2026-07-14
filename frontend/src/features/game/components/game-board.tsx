@@ -20,6 +20,7 @@ export function GameBoard({ gameId }: GameBoardProps) {
     snapshot,
     wsStatus,
     error,
+    ratingUpdate,
     drawOfferState,
     actionPending,
     sendMove,
@@ -49,6 +50,12 @@ export function GameBoard({ gameId }: GameBoardProps) {
 
   const gameOver =
     snapshot?.status === "finished" || snapshot?.status === "abandoned";
+  const myRatingChange = useMemo(() => {
+    if (!ratingUpdate || !myPlayerColor) return null;
+    return myPlayerColor === "white"
+      ? ratingUpdate.white_rating_change
+      : ratingUpdate.black_rating_change;
+  }, [ratingUpdate, myPlayerColor]);
   const canAct = Boolean(myPlayerColor) && !gameOver && wsStatus === "open";
   const hasIncomingDrawOffer = drawOfferState === "incoming";
   const hasOutgoingDrawOffer = drawOfferState === "outgoing";
@@ -82,6 +89,13 @@ export function GameBoard({ gameId }: GameBoardProps) {
           {snapshot.termination && (
             <p className="mt-1 text-sm capitalize text-neutral-500">
               {snapshot.termination.replace(/_/g, " ")}
+            </p>
+          )}
+          {snapshot.rated && (
+            <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-200">
+              {myRatingChange
+                ? `Rating ${myRatingChange.delta >= 0 ? "+" : ""}${myRatingChange.delta} (${myRatingChange.after})`
+                : "Rating updating..."}
             </p>
           )}
         </div>

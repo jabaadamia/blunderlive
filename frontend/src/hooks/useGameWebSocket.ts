@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getTokenUserId } from "@/features/auth/lib/jwt";
 import { getUsableAccessToken } from "@/features/auth/lib/auth-client";
 import { applyUciMoveToSnapshot } from "@/features/game/lib/snapshot-utils";
-import type { GameSnapshot } from "@/features/game/types";
+import type { GameSnapshot, RatingUpdateConfirmed } from "@/features/game/types";
 
 export type WsStatus = "connecting" | "open" | "closed" | "error";
 export type DrawOfferState = "none" | "incoming" | "outgoing";
@@ -21,6 +21,7 @@ interface UseGameWebSocketResult {
   snapshot: GameSnapshot | null;
   wsStatus: WsStatus;
   error: string | null;
+  ratingUpdate: RatingUpdateConfirmed | null;
   drawOfferState: DrawOfferState;
   actionPending: GameActionPending;
   sendMove: (uci: string) => void;
@@ -57,6 +58,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
   const [optimisticSnapshot, setOptimisticSnapshot] = useState<GameSnapshot | null>(null);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
+  const [ratingUpdate, setRatingUpdate] = useState<RatingUpdateConfirmed | null>(null);
   const [drawOfferState, setDrawOfferState] = useState<DrawOfferState>("none");
   const [actionPending, setActionPending] = useState<GameActionPending>(null);
 
@@ -108,6 +110,13 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
           reason?: string;
           code?: string;
           detail?: string;
+          game_id?: string;
+          white_player_id?: string;
+          black_player_id?: string;
+          rated?: boolean;
+          rating_category?: string | null;
+          white_rating_change?: RatingUpdateConfirmed["white_rating_change"];
+          black_rating_change?: RatingUpdateConfirmed["black_rating_change"];
         };
         try {
           msg = JSON.parse(event.data as string);
@@ -167,6 +176,25 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
           case "error":
             setActionPending(null);
             setError(msg.detail ?? msg.code ?? "Unknown error");
+            break;
+
+          case "rating_update_confirmed":
+            if (
+              msg.game_id &&
+              msg.white_player_id &&
+              msg.black_player_id &&
+              typeof msg.rated === "boolean"
+            ) {
+              setRatingUpdate({
+                game_id: msg.game_id,
+                white_player_id: msg.white_player_id,
+                black_player_id: msg.black_player_id,
+                rated: msg.rated,
+                rating_category: msg.rating_category ?? null,
+                white_rating_change: msg.white_rating_change ?? null,
+                black_rating_change: msg.black_rating_change ?? null,
+              });
+            }
             break;
 
           case "pong":
@@ -290,6 +318,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
     snapshot: optimisticSnapshot ?? confirmedSnapshot,
     wsStatus,
     error,
+    ratingUpdate,
     drawOfferState,
     actionPending,
     sendMove,
