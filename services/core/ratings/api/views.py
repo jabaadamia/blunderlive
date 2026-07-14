@@ -55,3 +55,25 @@ class MyRatingHistoryView(APIView):
         history = get_rating_history_for_user(request.user, category=category)
         serializer = RatingHistorySerializer(history, many=True)
         return Response(serializer.data)
+
+class UserRatingHistoryView(APIView):
+    permission_classes = [permissions.AllowAny]
+    @extend_schema(
+        tags=["ratings"],
+        parameters=[
+            OpenApiParameter(
+                name="category",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                enum=[choice[0] for choice in RatingCategory.choices],
+            )
+        ],
+        responses=RatingHistorySerializer(many=True),
+    )
+    def get(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        category = request.query_params.get("category")
+        history = get_rating_history_for_user(user, category=category)
+        serializer = RatingHistorySerializer(history, many=True)
+        return Response(serializer.data)

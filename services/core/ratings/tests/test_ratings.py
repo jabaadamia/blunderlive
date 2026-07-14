@@ -164,3 +164,63 @@ def test_my_rating_history_endpoint_filters_by_category(authenticated_ratings_cl
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["category"] == RatingCategory.RAPID
+
+
+@pytest.mark.django_db
+def test_user_rating_history_endpoint_is_public(ratings_client, rated_user):
+    rating = get_or_create_rating(rated_user, RatingCategory.RAPID)
+    rating.value = 1216
+    rating.save(update_fields=["value", "last_updated"])
+    RatingHistory.objects.create(
+        rating=rating,
+        source=RatingHistorySource.GAME,
+        previous_value=1200,
+        new_value=1216,
+        delta=16,
+        notes="Result: 1-0",
+    )
+
+    response = ratings_client.get(f"/api/ratings/users/{rated_user.id}/history/")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["category"] == RatingCategory.RAPID
+
+
+@pytest.mark.django_db
+def test_user_rating_history_endpoint_filters_by_category(ratings_client, rated_user):
+    rapid_rating = get_or_create_rating(rated_user, RatingCategory.RAPID)
+    RatingHistory.objects.create(
+        rating=rapid_rating,
+        source=RatingHistorySource.GAME,
+        previous_value=1200,
+        new_value=1216,
+        delta=16,
+        notes="Result: 1-0",
+    )
+    blitz_rating = get_or_create_rating(rated_user, RatingCategory.BLITZ)
+    RatingHistory.objects.create(
+        rating=blitz_rating,
+        source=RatingHistorySource.GAME,
+        previous_value=1200,
+        new_value=1184,
+        delta=-16,
+        notes="Result: 0-1",
+    )
+
+    response = ratings_client.get(
+        f"/api/ratings/users/{rated_user.id}/history/?category=rapid"
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["category"] == RatingCategory.RAPID
+
+
+@pytest.mark.django_db
+def test_user_rating_history_endpoint_404_for_unknown_user(ratings_client):
+    response = ratings_client.get(
+        "/api/ratings/users/00000000-0000-0000-0000-000000000000/history/"
+    )
+
+    assert response.status_code == 404
