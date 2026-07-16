@@ -12,6 +12,7 @@ import {
 import { ACCESS_TOKEN_STORAGE_KEY } from "@/lib/api";
 import {
   getTokenRefreshDelay,
+  getMyProfile,
   getMyRatings,
   getUsableAccessToken,
   login,
@@ -27,9 +28,15 @@ import type {
   RegisterPayload,
 } from "@/features/auth/types";
 
+type UserProfile = {
+  id: string;
+  username: string;
+};
+
 type AuthContextValue = {
   status: AuthStatus;
   accessToken: string | null;
+  user: UserProfile | null;
   isAuthenticated: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
@@ -42,6 +49,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
 
   const syncAuthenticatedState = useCallback((token: string | null) => {
@@ -72,6 +80,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isActive = false;
     };
   }, [syncAuthenticatedState]);
+
+  useEffect(() => {
+    let isActive = true;
+    async function loadUser() {
+      if (accessToken) {
+        try {
+          const profile = await getMyProfile();
+          if (isActive) {
+            setUser(profile);
+          }
+        } catch {
+          if (isActive) {
+            setUser(null);
+          }
+        }
+      } else {
+        setUser(null);
+      }
+    }
+    
+    void loadUser();
+
+    return () => {
+      isActive = false;
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -131,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       status,
       accessToken,
+      user,
       isAuthenticated: status === "authenticated",
       login: handleLogin,
       register: handleRegister,
@@ -138,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshSession,
       getMyRatings,
     }),
-    [accessToken, handleLogin, handleLogout, handleRegister, refreshSession, status],
+    [accessToken, user, handleLogin, handleLogout, handleRegister, refreshSession, status],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

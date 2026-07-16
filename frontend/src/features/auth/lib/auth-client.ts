@@ -250,3 +250,7 @@ export async function logout() {
 export async function getMyRatings() {
   return request<Rating[]>(`${CORE_API_BASE}/ratings/me/`);
 }
+
+export async function getMyProfile() {
+  return request<{ id: string; username: string }>(`${CORE_API_BASE}/users/me/`);
+}
