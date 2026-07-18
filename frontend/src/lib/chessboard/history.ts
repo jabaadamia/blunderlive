@@ -207,3 +207,50 @@ export function getStateAtPly(
   const history = buildMoveHistory(moves, initialFen);
   return history[Math.min(ply, history.length) - 1]?.state ?? parseFen(initialFen);
 }
+
+function stripSanSuffix(san: string) {
+  return san.replace(/[+#]$/, "");
+}
+
+function sanToMove(state: GameState, san: string): Move | null {
+  const target = stripSanSuffix(san);
+
+  for (const move of getLegalMoves(state)) {
+    if (stripSanSuffix(moveToSan(state, move)) === target) {
+      return move;
+    }
+  }
+
+  return null;
+}
+
+function extractSanTokens(pgn: string): string[] {
+  const movetext = pgn
+    .replace(/\{[^}]*\}/g, "") // strip comments
+    .replace(/\[[^\]]*\]/g, "") // strip header tags
+    .trim();
+
+  return movetext
+    .split(/\s+/)
+    .filter(
+      (token) =>
+        token &&
+        !/^\d+\.+$/.test(token) &&
+        !["1-0", "0-1", "1/2-1/2", "*"].includes(token),
+    );
+}
+
+export function pgnToUciMoves(pgn: string, initialFen = INITIAL_FEN): string[] {
+  let state = parseFen(initialFen);
+  const uciMoves: string[] = [];
+
+  for (const san of extractSanTokens(pgn)) {
+    const move = sanToMove(state, san);
+    if (!move) break; // malformed/unparseable PGN - stop rather than desync
+
+    uciMoves.push(indexToCoord(move.from) + indexToCoord(move.to) + (move.promotion ?? ""));
+    state = makeMove(state, move);
+  }
+
+  return uciMoves;
+}

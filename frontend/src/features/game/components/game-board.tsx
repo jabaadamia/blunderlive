@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import BoardWithControls from "@/components/chessboard/BoardWithControls";
+import { PlayerLabel, type LivePlayerDisplay } from "@/features/game/components/player-label";
 import { getTokenUserId } from "@/features/auth/lib/jwt";
 import { useAuth } from "@/providers/auth-provider";
 import { parseFen } from "@/lib/chessboard/fen";
@@ -56,9 +57,56 @@ export function GameBoard({ gameId }: GameBoardProps) {
       ? ratingUpdate.white_rating_change
       : ratingUpdate.black_rating_change;
   }, [ratingUpdate, myPlayerColor]);
+
+  const topPlayer = useMemo<LivePlayerDisplay | null>(() => {
+    if (!snapshot) return null;
+    const participant =
+      myPlayerColor === "black" ? snapshot.white : snapshot.black;
+    return {
+      userId: participant.user_id,
+      username: participant.username,
+      rating: participant.rating,
+    };
+  }, [myPlayerColor, snapshot]);
+
+  const bottomPlayer = useMemo<LivePlayerDisplay | null>(() => {
+    if (!snapshot) return null;
+    const participant =
+      myPlayerColor === "black" ? snapshot.black : snapshot.white;
+    return {
+      userId: participant.user_id,
+      username: participant.username,
+      rating: participant.rating,
+    };
+  }, [myPlayerColor, snapshot]);
   const canAct = Boolean(myPlayerColor) && !gameOver && wsStatus === "open";
   const hasIncomingDrawOffer = drawOfferState === "incoming";
   const hasOutgoingDrawOffer = drawOfferState === "outgoing";
+
+  const statusElement = gameOver && snapshot ? (
+    <div className="rounded-sm border border-neutral-200 bg-white px-3 py-2 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 text-sm">
+      <div className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center justify-center gap-1.5 flex-wrap">
+        <span>
+          {snapshot.result === "1-0" && "White wins"}
+          {snapshot.result === "0-1" && "Black wins"}
+          {snapshot.result === "1/2-1/2" && "Draw"}
+          {!snapshot.result && "Game over"}
+        </span>
+        {snapshot.termination && (
+          <span className="text-xs capitalize text-neutral-400 dark:text-neutral-500">
+            • {snapshot.termination.replace(/_/g, " ")}
+          </span>
+        )}
+      </div>
+      {snapshot.rated && (
+        <div className="mt-0.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+          {myRatingChange
+            ? `Rating ${myRatingChange.delta >= 0 ? "+" : ""}${myRatingChange.delta} (${myRatingChange.after})`
+            : "Rating updating..."}
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <main className="flex min-h-screen flex-col gap-4 bg-neutral-50 px-4 py-6 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
@@ -78,31 +126,8 @@ export function GameBoard({ gameId }: GameBoardProps) {
         </div>
       )}
 
-      {gameOver && snapshot && (
-        <div className="mx-auto w-full max-w-4xl rounded-lg border border-neutral-200 bg-white px-6 py-4 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-          <p className="text-lg font-semibold">
-            {snapshot.result === "1-0" && "White wins"}
-            {snapshot.result === "0-1" && "Black wins"}
-            {snapshot.result === "1/2-1/2" && "Draw"}
-            {!snapshot.result && "Game over"}
-          </p>
-          {snapshot.termination && (
-            <p className="mt-1 text-sm capitalize text-neutral-500">
-              {snapshot.termination.replace(/_/g, " ")}
-            </p>
-          )}
-          {snapshot.rated && (
-            <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-200">
-              {myRatingChange
-                ? `Rating ${myRatingChange.delta >= 0 ? "+" : ""}${myRatingChange.delta} (${myRatingChange.after})`
-                : "Rating updating..."}
-            </p>
-          )}
-        </div>
-      )}
-
       <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
+        <div className="flex h-full w-full max-w-4xl">
           <BoardWithControls
             key={`${gameId}-${myPlayerColor ?? "seat"}`}
             fen={snapshot?.fen ?? INITIAL_FEN}
@@ -113,6 +138,8 @@ export function GameBoard({ gameId }: GameBoardProps) {
             controlBar
             pgnViewer
             forLiveGame={true}
+            topPlayerElement={<PlayerLabel player={topPlayer} />}
+            bottomPlayerElement={<PlayerLabel player={bottomPlayer} />}
             onDrawOffer={sendDrawOffer}
             onDrawAccept={acceptDrawOffer}
             onDrawDecline={declineDrawOffer}
@@ -122,6 +149,7 @@ export function GameBoard({ gameId }: GameBoardProps) {
             hasIncomingDrawOffer={hasIncomingDrawOffer}
             hasOutgoingDrawOffer={hasOutgoingDrawOffer}
             actionPending={actionPending !== null}
+            gameStatusElement={statusElement}
           />
         </div>
       </div>

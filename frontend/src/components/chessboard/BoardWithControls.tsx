@@ -33,6 +33,9 @@ interface BoardWithControlsProps {
   hasIncomingDrawOffer?: boolean;
   hasOutgoingDrawOffer?: boolean;
   actionPending?: boolean;
+  topPlayerElement?: React.ReactNode;
+  bottomPlayerElement?: React.ReactNode;
+  gameStatusElement?: React.ReactNode;
 }
 
 export default function BoardWithControls({
@@ -54,6 +57,9 @@ export default function BoardWithControls({
   hasIncomingDrawOffer = false,
   hasOutgoingDrawOffer = false,
   actionPending = false,
+  topPlayerElement,
+  bottomPlayerElement,
+  gameStatusElement,
 }: BoardWithControlsProps) {
   const isControlled = typeof onMove === 'function';
   const controlledGameState = useMemo(() => parseFen(fen), [fen]);
@@ -81,7 +87,14 @@ export default function BoardWithControls({
 
   const gameState = useMemo(() => {
     if (currentPly === totalPly) {
-      return latestGameState;
+      if (isControlled) {
+        return latestGameState;
+      }
+      // In uncontrolled mode (history review), derive from move history
+      if (totalPly > 0 && moveHistory[totalPly - 1]?.state) {
+        return moveHistory[totalPly - 1].state;
+      }
+      return initialGameState;
     }
 
     if (currentPly === 0) {
@@ -89,7 +102,7 @@ export default function BoardWithControls({
     }
 
     return moveHistory[currentPly - 1]?.state ?? latestGameState;
-  }, [currentPly, initialGameState, latestGameState, moveHistory, totalPly]);
+  }, [currentPly, initialGameState, isControlled, latestGameState, moveHistory, totalPly]);
 
   const activeColor = gameState.turn;
   const canInteract =
@@ -265,8 +278,9 @@ export default function BoardWithControls({
   }
 
   return (
-    <div className="flex h-full w-full flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch">
-      <div className="flex min-w-0 flex-1 flex-col gap-3 xl:min-h-0">
+    <div className="flex h-full min-h-0 w-full flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch xl:gap-4">
+      <div className="flex min-h-0 min-w-0 flex-col gap-2 xl:row-span-full">
+        {topPlayerElement}
         <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))]">
           <Board
             board={gameState.board}
@@ -280,6 +294,7 @@ export default function BoardWithControls({
             onDragEnd={handleDragEnd}
           />
         </div>
+        {bottomPlayerElement}
 
         {pendingPromotion ? (
           <PromotionPicker
@@ -291,12 +306,32 @@ export default function BoardWithControls({
             onCancel={handlePromotionCancel}
           />
         ) : null}
-
       </div>
 
-      <div className="flex min-w-0 flex-col gap-3 xl:h-full xl:min-h-0">
+      {/* Sidebar column — stacks below board column on small screens */}
+      <div className={`flex min-w-0 flex-col gap-3 xl:h-full xl:min-h-0 ${
+        topPlayerElement ? "xl:pt-8" : "xl:pt-0"
+      } ${
+        bottomPlayerElement ? "xl:pb-8" : "xl:pb-0"
+      }`}>
+        {pgnViewer ? (
+          <div className="flex min-h-0 w-full max-w-[20rem] flex-1 flex-col xl:mx-0">
+            <PGNViewer
+              entries={moveHistory}
+              currentPly={currentPly}
+              onSelectPly={navigateToPly}
+            />
+          </div>
+        ) : null}
+
+        {gameStatusElement ? (
+          <div className="w-full max-w-[20rem]">
+            {gameStatusElement}
+          </div>
+        ) : null}
+
         {controlBar ? (
-          <div className="order-1 xl:order-2">
+          <div>
             <ControlBar
               canGoToFirst={currentPly > 0}
               canGoToPrevious={currentPly > 0}
@@ -312,9 +347,9 @@ export default function BoardWithControls({
             />
           </div>
         ) : null}
-      
+
         {forLiveGame ? (
-          <div className="order-2 xl:order-3">
+          <div>
             <DrawResignBar
               canOfferDraw={canOfferDraw}
               canResign={canResign}
@@ -325,16 +360,6 @@ export default function BoardWithControls({
               onDrawAccept={onDrawAccept}
               onDrawDecline={onDrawDecline}
               onResign={onResign}
-            />
-          </div>
-        ) : null}
-
-        {pgnViewer ? (
-          <div className="order-3 mx-auto w-full max-w-[20rem] xl:order-1 xl:mx-0 xl:min-h-0 xl:max-w-[20rem] xl:flex-1">
-            <PGNViewer
-              entries={moveHistory}
-              currentPly={currentPly}
-              onSelectPly={navigateToPly}
             />
           </div>
         ) : null}

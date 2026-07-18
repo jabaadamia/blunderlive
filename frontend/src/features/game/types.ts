@@ -1,6 +1,8 @@
 export interface GameParticipant {
   user_id: string;
   color: "white" | "black";
+  username: string;
+  rating: number | null;
 }
 
 export interface GameSnapshot {

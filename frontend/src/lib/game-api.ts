@@ -18,6 +18,12 @@ export interface MatchmakingJoinResponse {
 
 export type MatchmakingState = "idle" | "queued" | "matched";
 
+export type MatchmakingPlayerDisplay = {
+  user_id: string;
+  username: string;
+  rating: number | null;
+};
+
 export interface MatchmakingStatusResponse {
   state: MatchmakingState;
   queue?: string;
@@ -26,6 +32,8 @@ export interface MatchmakingStatusResponse {
   increment_ms?: number;
   joined_at?: string;
   active_game_id?: string;
+  white_player?: MatchmakingPlayerDisplay;
+  black_player?: MatchmakingPlayerDisplay;
 }
 
 async function gameRequest<T>(
