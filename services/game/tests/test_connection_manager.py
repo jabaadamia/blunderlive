@@ -40,10 +40,12 @@ async def test_connection_manager_connects_broadcasts_and_disconnects() -> None:
         white=GameParticipant(
             user_id=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
             color=PlayerColor.WHITE,
+            username="white-player",
         ),
-        black=  GameParticipant(
+        black=GameParticipant(
             user_id=UUID("11111111-2222-3333-4444-555555555555"),
             color=PlayerColor.BLACK,
+            username="black-player",
         ),
     )
     

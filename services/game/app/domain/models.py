@@ -9,6 +9,8 @@ from .enums import GameResult, GameStatus, PlayerColor, TerminationType
 class GameParticipant(BaseModel):
     user_id: UUID
     color: PlayerColor
+    username: str | None
+    rating: int | None = None
 
 
 class GameSnapshot(BaseModel):

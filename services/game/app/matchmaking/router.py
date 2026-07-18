@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth.dependencies import get_current_player_http
@@ -13,6 +15,7 @@ from ..schemas.matchmaking import (
     MatchmakingRequestSchema,
     MatchmakingStatusResponse,
 )
+from ..schemas.players import PlayerDisplaySchema
 
 router = APIRouter(prefix="/matchmaking", tags=["matchmaking"])
 
@@ -58,9 +61,14 @@ async def matchmaking_status(
     status = await repository.fetch_queue_status(user_id=player.user_id)
 
     if status.active_game_id:
+        snapshot = await repository.fetch_game_snapshot(
+            game_id=UUID(status.active_game_id),
+        )
         return MatchmakingStatusResponse(
             state="matched",
             active_game_id=status.active_game_id,
+            white_player=PlayerDisplaySchema.from_participant(snapshot.white),
+            black_player=PlayerDisplaySchema.from_participant(snapshot.black),
         )
 
     if status.is_queued:

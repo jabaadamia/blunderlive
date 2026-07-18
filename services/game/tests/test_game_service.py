@@ -152,10 +152,12 @@ async def test_resign_game_finishes_game() -> None:
         white=GameParticipant(
             user_id=white_id,
             color=PlayerColor.WHITE,
+            username="white-player",
         ),
         black=GameParticipant(
             user_id=black_id,
             color=PlayerColor.BLACK,
+            username="black-player",
         ),
         version=0,
     )

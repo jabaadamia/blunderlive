@@ -173,8 +173,16 @@ async def test_try_create_match_assigns_active_games_and_removes_queue_entries()
         status=GameStatus.ACTIVE,
         fen="startpos",
         created_at=datetime.now(UTC),
-        white=GameParticipant(user_id=user_one, color=PlayerColor.WHITE),
-        black=GameParticipant(user_id=user_two, color=PlayerColor.BLACK),
+        white=GameParticipant(
+            user_id=user_one,
+            color=PlayerColor.WHITE,
+            username="player-one",
+        ),
+        black=GameParticipant(
+            user_id=user_two,
+            color=PlayerColor.BLACK,
+            username="player-two",
+        ),
         moves=[],
         move_count=0,
         version=0,
@@ -231,10 +239,12 @@ async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
         white=GameParticipant(
             user_id=user_one,
             color=PlayerColor.WHITE,
+            username="player-one",
         ),
         black=GameParticipant(
             user_id=user_two,
             color=PlayerColor.BLACK,
+            username="player-two",
         ),
         move_count=0,
         version=0,
@@ -311,10 +321,12 @@ async def test_save_game_snapshot_rejects_stale_version() -> None:
         white=GameParticipant(
             user_id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
             color=PlayerColor.WHITE,
+            username="white-player",
         ),
         black=GameParticipant(
             user_id=UUID("cccccccc-cccc-cccc-cccc-cccccccccccc"),
             color=PlayerColor.BLACK,
+            username="black-player",
         ),
         version=2,
     )

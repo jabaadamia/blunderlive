@@ -5,6 +5,7 @@ from typing_extensions import Literal
 from pydantic import BaseModel
 
 from .common import TimeControlSchema
+from .players import PlayerDisplaySchema
 
 
 class MatchmakingRequestSchema(BaseModel):
@@ -30,3 +31,5 @@ class MatchmakingStatusResponse(BaseModel):
 
     # present when matched
     active_game_id: Optional[str] = None
+    white_player: Optional[PlayerDisplaySchema] = None
+    black_player: Optional[PlayerDisplaySchema] = None

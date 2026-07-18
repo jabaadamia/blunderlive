@@ -4,6 +4,7 @@ from datetime import datetime, UTC
 import chess
 import chess.pgn
 
+from ..core.client import PlayerProfile, unknown_player_profile
 from ..domain.exceptions import GameAlreadyFinishedError, IllegalMoveError, NotPlayersTurnError
 
 from ..domain.models import GameSnapshot, GameParticipant
@@ -16,6 +17,8 @@ class ChessGameService:
         *,
         white_player_id,
         black_player_id,
+        white_profile: PlayerProfile | None = None,
+        black_profile: PlayerProfile | None = None,
         rated: bool = True,
         rating_category: str | None = None,
         initial_time_ms: int = 0,
@@ -24,6 +27,12 @@ class ChessGameService:
         game_id = uuid4()
 
         board = chess.Board()
+        resolved_white = white_profile or unknown_player_profile(
+            user_id=white_player_id,
+        )
+        resolved_black = black_profile or unknown_player_profile(
+            user_id=black_player_id,
+        )
 
         snapshot = GameSnapshot(
             game_id=game_id,
@@ -34,10 +43,14 @@ class ChessGameService:
             white=GameParticipant(
                 user_id=white_player_id,
                 color=PlayerColor.WHITE,
+                username=resolved_white.username,
+                rating=resolved_white.rating,
             ),
             black=GameParticipant(
                 user_id=black_player_id,
                 color=PlayerColor.BLACK,
+                username=resolved_black.username,
+                rating=resolved_black.rating,
             ),
             moves=[],
             move_count=0,

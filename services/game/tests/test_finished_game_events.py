@@ -25,10 +25,14 @@ def finished_snapshot() -> GameSnapshot:
         white=GameParticipant(
             user_id=UUID("bbbbbbbb-2222-2222-2222-222222222222"),
             color=PlayerColor.WHITE,
+            username="white-player",
+            rating=1200,
         ),
         black=GameParticipant(
             user_id=UUID("cccccccc-3333-3333-3333-333333333333"),
             color=PlayerColor.BLACK,
+            username="black-player",
+            rating=1200,
         ),
         moves=["e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7"],
         result=GameResult.WHITE_WIN,

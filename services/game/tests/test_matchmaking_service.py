@@ -8,6 +8,7 @@ from app.chess.service import ChessGameService
 from app.domain.enums import GameStatus
 from app.matchmaking.repository import MatchmakingRepository
 from app.matchmaking.service import MatchmakingService
+from tests.player_profiles import StaticPlayerProfileClient
 
 
 @pytest.mark.asyncio
@@ -22,7 +23,11 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
 
     repository = MatchmakingRepository(redis)
     chess_service = ChessGameService()
-    service = MatchmakingService(repository, chess_service)
+    service = MatchmakingService(
+        repository,
+        chess_service,
+        StaticPlayerProfileClient(),
+    )
 
     user_one = UUID("aaaaaaaa-1111-1111-1111-111111111111")
     user_two = UUID("bbbbbbbb-2222-2222-2222-222222222222")
@@ -70,6 +75,10 @@ async def test_run_matchmaking_cycle_matches_two_players() -> None:
     assert stored_snapshot.status == GameStatus.ACTIVE
     assert stored_snapshot.white.user_id == user_one
     assert stored_snapshot.black.user_id == user_two
+    assert stored_snapshot.white.username == f"player-{str(user_one)[:8]}"
+    assert stored_snapshot.black.username == f"player-{str(user_two)[:8]}"
+    assert stored_snapshot.white.rating == 1200
+    assert stored_snapshot.black.rating == 1200
     assert stored_snapshot.rated is True
     assert stored_snapshot.rating_category == "blitz"
     assert stored_snapshot.initial_time_ms == 300000
@@ -87,7 +96,11 @@ async def test_run_matchmaking_cycle_does_not_mix_rated_and_casual() -> None:
 
     repository = MatchmakingRepository(redis)
     chess_service = ChessGameService()
-    service = MatchmakingService(repository, chess_service)
+    service = MatchmakingService(
+        repository,
+        chess_service,
+        StaticPlayerProfileClient(),
+    )
 
     rated_user = UUID("cccccccc-3333-3333-3333-333333333333")
     casual_user = UUID("dddddddd-4444-4444-4444-444444444444")

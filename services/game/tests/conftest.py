@@ -15,6 +15,7 @@ def set_default_game_test_env() -> None:
     os.environ.setdefault("CORE_GAMES_FINISHED_STREAM", "games.finished")
     os.environ.setdefault("CORE_GAMES_PROCESSED_STREAM", "games.processed")
     os.environ.setdefault("GAME_GAMES_PROCESSED_CONSUMER_GROUP", "game-rating-updates")
+    os.environ.setdefault("CORE_API_BASE_URL", "http://core:8000")
 
 
 set_default_game_test_env()

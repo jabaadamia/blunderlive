@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from redis.asyncio import Redis
 
 from .chess.service import ChessGameService
+from .core.client import HttpPlayerProfileClient, ResilientPlayerProfileClient
 from .game.connection_manager import ConnectionManager
 from .game.finished_worker import finished_game_publisher_worker
 from .game.processed_worker import processed_game_worker
@@ -35,7 +36,14 @@ async def lifespan(app: FastAPI):
 
     matchmaking_repository = MatchmakingRepository(redis_client)
     chess_service = ChessGameService()
-    matchmaking_service = MatchmakingService(matchmaking_repository, chess_service)
+    player_client = ResilientPlayerProfileClient(
+        HttpPlayerProfileClient(base_url=settings.core_api_base_url)
+    )
+    matchmaking_service = MatchmakingService(
+        matchmaking_repository,
+        chess_service,
+        player_client,
+    )
 
     matchmaking_task = asyncio.create_task(
         matchmaking_worker(matchmaking_service)
