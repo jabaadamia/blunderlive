@@ -53,11 +53,12 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   }, [accessToken, gameDetail]);
 
   const isFlipped = myPlayerColor === "black";
+  const pgn = gameDetail?.pgn;
 
   const uciMoves = useMemo(() => {
-    if (!gameDetail?.pgn) return [];
-    return pgnToUciMoves(gameDetail.pgn);
-  }, [gameDetail?.pgn]);
+    if (!pgn) return [];
+    return pgnToUciMoves(pgn);
+  }, [pgn]);
 
   const topPlayer = isFlipped ? gameDetail?.white_player : gameDetail?.black_player;
   const bottomPlayer = isFlipped ? gameDetail?.black_player : gameDetail?.white_player;
