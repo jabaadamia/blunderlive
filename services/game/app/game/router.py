@@ -8,37 +8,39 @@ from app.domain.enums import GameStatus
 from ..auth.dependencies import get_current_player_ws
 from ..auth.models import PlayerIdentity
 from ..dependencies import (
+    get_clock_watchdog_manager,
     get_connection_manager,
     get_game_session_service,
 )
 from ..domain.exceptions import (
     ConcurrentMoveConflictError,
-    GameNotFoundError,
     GameAlreadyFinishedError,
-    InvalidDrawStateError,
+    GameNotFoundError,
     IllegalMoveError,
+    InvalidDrawStateError,
     NotPlayersTurnError,
     PlayerNotInGameError,
 )
 from ..schemas.ws_in import (
     DrawAcceptedMessage,
     DrawDeclineMessage,
+    DrawOfferMessage,
     InboundWebSocketMessage,
     MoveMessage,
-    DrawOfferMessage,
-    ResignMessage,
     PingMessage,
+    ResignMessage,
 )
 from ..schemas.ws_out import (
+    DrawDeclinedMessage,
+    DrawOfferedMessage,
     ErrorMessage,
     GameOverMessage,
     GameStateMessage,
     MoveAcceptedMessage,
-    DrawOfferedMessage,
-    DrawDeclinedMessage,
     OutboundWebSocketMessage,
     PongMessage,
 )
+from .clock_watchdog import ClockWatchdogManager
 from .connection_manager import ConnectionManager
 from .service import GameSessionService
 from .websocket import send_message
@@ -61,6 +63,9 @@ async def game_websocket(
     manager: ConnectionManager = Depends(get_connection_manager),
     session_service: GameSessionService = Depends(
         get_game_session_service,
+    ),
+    watchdog: ClockWatchdogManager = Depends(
+        get_clock_watchdog_manager,
     ),
 ) -> None:
     try:
@@ -93,6 +98,15 @@ async def game_websocket(
             ),
         )
 
+        if snapshot.status == GameStatus.ACTIVE and snapshot.initial_time_ms > 0:
+            watchdog.schedule(
+                game_id=game_id,
+                version=snapshot.version,
+                delay_ms=session_service.chess_service.remaining_time_for_turn(
+                    snapshot=snapshot,
+                ),
+            )
+
         while True:
             try:
                 payload = await websocket.receive_json()
@@ -116,12 +130,21 @@ async def game_websocket(
                     )
 
                     if updated_snapshot.status == GameStatus.FINISHED:
+                        watchdog.cancel(game_id=game_id)
                         outbound: OutboundWebSocketMessage = (
                             GameOverMessage(
                                 state=updated_snapshot,
                             )
                         )
                     else:
+                        if updated_snapshot.initial_time_ms > 0:
+                            watchdog.schedule(
+                                game_id=game_id,
+                                version=updated_snapshot.version,
+                                delay_ms=session_service.chess_service.remaining_time_for_turn(
+                                    snapshot=updated_snapshot,
+                                ),
+                            )
                         outbound = MoveAcceptedMessage(
                             state=updated_snapshot,
                         )
@@ -130,35 +153,54 @@ async def game_websocket(
                         game_id=game_id,
                         message=outbound,
                     )
-                
+
                 if isinstance(message, DrawOfferMessage):
-                    await session_service.offer_draw(
+                    updated_snapshot = await session_service.offer_draw(
                         game_id=game_id,
                         player_id=player.user_id,
                     )
+
+                    if updated_snapshot.initial_time_ms > 0:
+                        watchdog.schedule(
+                            game_id=game_id,
+                            version=updated_snapshot.version,
+                            delay_ms=session_service.chess_service.remaining_time_for_turn(
+                                snapshot=updated_snapshot,
+                            ),
+                        )
 
                     await manager.broadcast(
                         game_id=game_id,
                         message=DrawOfferedMessage(),
                     )
 
-
                 if isinstance(message, DrawDeclineMessage):
-                    await session_service.decline_draw(
+                    updated_snapshot = await session_service.decline_draw(
                         game_id=game_id,
                         player_id=player.user_id,
                     )
+
+                    if updated_snapshot.initial_time_ms > 0:
+                        watchdog.schedule(
+                            game_id=game_id,
+                            version=updated_snapshot.version,
+                            delay_ms=session_service.chess_service.remaining_time_for_turn(
+                                snapshot=updated_snapshot,
+                            ),
+                        )
 
                     await manager.broadcast(
                         game_id=game_id,
                         message=DrawDeclinedMessage(reason="declined_by_opponent"),
                     )
-                
+
                 if isinstance(message, DrawAcceptedMessage):
                     updated_snapshot = await session_service.accept_draw(
                         game_id=game_id,
                         player_id=player.user_id,
                     )
+
+                    watchdog.cancel(game_id=game_id)
 
                     await manager.broadcast(
                         game_id=game_id,
@@ -172,6 +214,8 @@ async def game_websocket(
                         game_id=game_id,
                         player_id=player.user_id,
                     )
+
+                    watchdog.cancel(game_id=game_id)
 
                     await manager.broadcast(
                         game_id=game_id,

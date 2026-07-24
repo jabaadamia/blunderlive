@@ -7,9 +7,11 @@ from redis.asyncio import Redis
 
 from .chess.service import ChessGameService
 from .core.client import HttpPlayerProfileClient, ResilientPlayerProfileClient
+from .game.clock_watchdog import ClockWatchdogManager
 from .game.connection_manager import ConnectionManager
 from .game.finished_worker import finished_game_publisher_worker
 from .game.processed_worker import processed_game_worker
+from .game.service import GameSessionService
 from .config import get_settings
 from .matchmaking.repository import MatchmakingRepository
 from .matchmaking.service import MatchmakingService
@@ -36,6 +38,12 @@ async def lifespan(app: FastAPI):
 
     matchmaking_repository = MatchmakingRepository(redis_client)
     chess_service = ChessGameService()
+    game_session_service = GameSessionService(matchmaking_repository, chess_service)
+    app.state.clock_watchdog_manager = ClockWatchdogManager(
+        session_service=game_session_service,
+        manager=app.state.connection_manager,
+    )
+
     player_client = ResilientPlayerProfileClient(
         HttpPlayerProfileClient(base_url=settings.core_api_base_url)
     )
@@ -77,6 +85,8 @@ async def lifespan(app: FastAPI):
             "game service shutdown starting",
             extra={"service": settings.app_name},
         )
+
+        app.state.clock_watchdog_manager.cancel_all()
 
         background_tasks = [
             matchmaking_task,

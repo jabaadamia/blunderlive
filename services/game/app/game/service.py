@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from ..domain.enums import GameResult, GameResult, GameStatus, TerminationType
+from ..domain.enums import GameResult, GameStatus, TerminationType
 
 from ..chess.service import ChessGameService
-from ..domain.exceptions import ConcurrentMoveConflictError, GameAlreadyFinishedError, InvalidDrawStateError, PlayerNotInGameError
+from ..domain.exceptions import (
+    ConcurrentMoveConflictError,
+    GameAlreadyFinishedError,
+    GameNotFoundError,
+    InvalidDrawStateError,
+    PlayerNotInGameError,
+)
 from ..domain.models import GameSnapshot
 from ..matchmaking.repository import MatchmakingRepository
 
@@ -21,6 +27,42 @@ class GameSessionService:
 
     async def get_game_snapshot(self, *, game_id: UUID) -> GameSnapshot:
         return await self.repository.fetch_game_snapshot(game_id=game_id)
+
+    async def check_timeout(
+        self,
+        *,
+        game_id: UUID,
+        expected_version: int,
+    ) -> GameSnapshot | None:
+        try:
+            snapshot = await self.repository.fetch_game_snapshot(game_id=game_id)
+        except GameNotFoundError:
+            return None
+
+        if (
+            snapshot.version != expected_version
+            or snapshot.status != GameStatus.ACTIVE
+        ):
+            return None
+
+        timed_out_snapshot = self.chess_service.apply_timeout(snapshot=snapshot)
+        if timed_out_snapshot is None:
+            return None
+
+        updated_snapshot = timed_out_snapshot.model_copy(
+            update={
+                "version": snapshot.version + 1,
+            }
+        )
+
+        saved = await self.repository.save_game_snapshot(
+            expected_version=snapshot.version,
+            snapshot=updated_snapshot,
+        )
+        if not saved:
+            return None
+
+        return updated_snapshot
 
     async def apply_move(
         self,
