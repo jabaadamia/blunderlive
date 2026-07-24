@@ -280,7 +280,11 @@ export default function BoardWithControls({
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch xl:gap-4">
       <div className="flex min-h-0 min-w-0 flex-col gap-2 xl:row-span-full">
-        {topPlayerElement}
+        {topPlayerElement ? (
+          <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))] flex items-center justify-between">
+            {topPlayerElement}
+          </div>
+        ) : null}
         <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))]">
           <Board
             board={gameState.board}
@@ -294,7 +298,11 @@ export default function BoardWithControls({
             onDragEnd={handleDragEnd}
           />
         </div>
-        {bottomPlayerElement}
+        {bottomPlayerElement ? (
+          <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))] flex items-center justify-between">
+            {bottomPlayerElement}
+          </div>
+        ) : null}
 
         {pendingPromotion ? (
           <PromotionPicker
@@ -309,11 +317,9 @@ export default function BoardWithControls({
       </div>
 
       {/* Sidebar column — stacks below board column on small screens */}
-      <div className={`flex min-w-0 flex-col gap-3 xl:h-full xl:min-h-0 ${
-        topPlayerElement ? "xl:pt-8" : "xl:pt-0"
-      } ${
-        bottomPlayerElement ? "xl:pb-8" : "xl:pb-0"
-      }`}>
+      <div className={`flex min-w-0 flex-col gap-3 xl:h-full xl:min-h-0 ${topPlayerElement ? "xl:pt-8" : "xl:pt-0"
+        } ${bottomPlayerElement ? "xl:pb-8" : "xl:pb-0"
+        }`}>
         {pgnViewer ? (
           <div className="flex min-h-0 w-full max-w-[20rem] flex-1 flex-col xl:mx-0">
             <PGNViewer

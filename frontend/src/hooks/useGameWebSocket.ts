@@ -24,6 +24,7 @@ interface UseGameWebSocketResult {
   ratingUpdate: RatingUpdateConfirmed | null;
   drawOfferState: DrawOfferState;
   actionPending: GameActionPending;
+  clockSyncedAt: number;
   sendMove: (uci: string) => void;
   sendDrawOffer: () => void;
   acceptDrawOffer: () => void;
@@ -61,6 +62,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
   const [ratingUpdate, setRatingUpdate] = useState<RatingUpdateConfirmed | null>(null);
   const [drawOfferState, setDrawOfferState] = useState<DrawOfferState>("none");
   const [actionPending, setActionPending] = useState<GameActionPending>(null);
+  const [clockSyncedAt, setClockSyncedAt] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
@@ -130,6 +132,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
           case "game_over":
             if (msg.state) {
               const incoming = msg.state;
+              const receivedAt = Date.now();
               setConfirmedSnapshot((prev) => {
                 if (
                   prev &&
@@ -142,6 +145,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
                 }
                 return incoming;
               });
+              setClockSyncedAt(receivedAt);
               setDrawOfferState(deriveDrawOfferState(incoming, userIdRef.current));
 
               if (
@@ -321,6 +325,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
     ratingUpdate,
     drawOfferState,
     actionPending,
+    clockSyncedAt,
     sendMove,
     sendDrawOffer,
     acceptDrawOffer,

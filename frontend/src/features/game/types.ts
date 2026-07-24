@@ -21,6 +21,9 @@ export interface GameSnapshot {
   rating_category: string | null;
   initial_time_ms: number;
   increment_ms: number;
+  white_time_left_ms?: number;
+  black_time_left_ms?: number;
+  turn_started_at?: string | null;
   draw_offer_by: string | null;
   version: number;
 }

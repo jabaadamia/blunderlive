@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import BoardWithControls from "@/components/chessboard/BoardWithControls";
 import { PlayerLabel, type LivePlayerDisplay } from "@/features/game/components/player-label";
+import { Timer } from "@/features/game/components/timer";
 import { getTokenUserId } from "@/features/auth/lib/jwt";
 import { useAuth } from "@/providers/auth-provider";
 import { parseFen } from "@/lib/chessboard/fen";
@@ -24,6 +25,7 @@ export function GameBoard({ gameId }: GameBoardProps) {
     ratingUpdate,
     drawOfferState,
     actionPending,
+    clockSyncedAt,
     sendMove,
     sendDrawOffer,
     acceptDrawOffer,
@@ -40,14 +42,15 @@ export function GameBoard({ gameId }: GameBoardProps) {
     return null;
   }, [accessToken, snapshot]);
 
+  const currentTurnColor = useMemo(() => {
+    if (!snapshot) return "white";
+    return parseFen(snapshot.fen).turn === "w" ? "white" : "black";
+  }, [snapshot]);
+
   const myTurn = useMemo(() => {
     if (!snapshot || !myPlayerColor) return false;
-    const turn = parseFen(snapshot.fen).turn;
-    return (
-      (myPlayerColor === "white" && turn === "w") ||
-      (myPlayerColor === "black" && turn === "b")
-    );
-  }, [snapshot, myPlayerColor]);
+    return currentTurnColor === myPlayerColor;
+  }, [snapshot, myPlayerColor, currentTurnColor]);
 
   const gameOver =
     snapshot?.status === "finished" || snapshot?.status === "abandoned";
@@ -79,6 +82,40 @@ export function GameBoard({ gameId }: GameBoardProps) {
       rating: participant.rating,
     };
   }, [myPlayerColor, snapshot]);
+
+  const topColor = myPlayerColor === "black" ? "white" : "black";
+  const bottomColor = myPlayerColor === "black" ? "black" : "white";
+
+  const renderPlayerHeader = (
+    player: LivePlayerDisplay | null,
+    color: "white" | "black",
+  ) => {
+    if (!player) return null;
+    const isTimed = Boolean(snapshot && snapshot.initial_time_ms > 0);
+    const remainingMs =
+      snapshot
+        ? color === "white"
+          ? snapshot.white_time_left_ms
+          : snapshot.black_time_left_ms
+        : undefined;
+    const isRunning = Boolean(
+      snapshot && snapshot.status === "active" && currentTurnColor === color,
+    );
+
+    return (
+      <div className="flex w-full items-center justify-between">
+        <PlayerLabel player={player} />
+        {isTimed && remainingMs !== undefined ? (
+          <Timer
+            remainingMs={remainingMs}
+            isRunning={isRunning}
+            syncedAt={clockSyncedAt}
+          />
+        ) : null}
+      </div>
+    );
+  };
+
   const canAct = Boolean(myPlayerColor) && !gameOver && wsStatus === "open";
   const hasIncomingDrawOffer = drawOfferState === "incoming";
   const hasOutgoingDrawOffer = drawOfferState === "outgoing";
@@ -138,8 +175,8 @@ export function GameBoard({ gameId }: GameBoardProps) {
             controlBar
             pgnViewer
             forLiveGame={true}
-            topPlayerElement={<PlayerLabel player={topPlayer} />}
-            bottomPlayerElement={<PlayerLabel player={bottomPlayer} />}
+            topPlayerElement={renderPlayerHeader(topPlayer, topColor)}
+            bottomPlayerElement={renderPlayerHeader(bottomPlayer, bottomColor)}
             onDrawOffer={sendDrawOffer}
             onDrawAccept={acceptDrawOffer}
             onDrawDecline={declineDrawOffer}
