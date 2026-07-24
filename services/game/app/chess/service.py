@@ -6,9 +6,8 @@ import chess.pgn
 
 from ..core.client import PlayerProfile, unknown_player_profile
 from ..domain.exceptions import GameAlreadyFinishedError, IllegalMoveError, NotPlayersTurnError
-
 from ..domain.models import GameSnapshot, GameParticipant
-from ..domain.enums import GameResult, GameStatus, PlayerColor, TerminationType, TerminationType
+from ..domain.enums import GameResult, GameStatus, PlayerColor, TerminationType
 
 
 class ChessGameService:
@@ -27,30 +26,23 @@ class ChessGameService:
         game_id = uuid4()
 
         board = chess.Board()
-        resolved_white = white_profile or unknown_player_profile(
-            user_id=white_player_id,
-        )
-        resolved_black = black_profile or unknown_player_profile(
-            user_id=black_player_id,
-        )
+        resolved_white = white_profile or unknown_player_profile(user_id=white_player_id)
+        resolved_black = black_profile or unknown_player_profile(user_id=black_player_id)
 
-        snapshot = GameSnapshot(
+        now = datetime.now(UTC)
+        return GameSnapshot(
             game_id=game_id,
             status=GameStatus.ACTIVE,
             fen=board.fen(),
-            created_at=datetime.now(UTC),
+            created_at=now,
             last_move_at=None,
             white=GameParticipant(
-                user_id=white_player_id,
-                color=PlayerColor.WHITE,
-                username=resolved_white.username,
-                rating=resolved_white.rating,
+                user_id=white_player_id, color=PlayerColor.WHITE,
+                username=resolved_white.username, rating=resolved_white.rating,
             ),
             black=GameParticipant(
-                user_id=black_player_id,
-                color=PlayerColor.BLACK,
-                username=resolved_black.username,
-                rating=resolved_black.rating,
+                user_id=black_player_id, color=PlayerColor.BLACK,
+                username=resolved_black.username, rating=resolved_black.rating,
             ),
             moves=[],
             move_count=0,
@@ -58,10 +50,57 @@ class ChessGameService:
             rating_category=rating_category,
             initial_time_ms=initial_time_ms,
             increment_ms=increment_ms,
+            white_time_left_ms=initial_time_ms,
+            black_time_left_ms=initial_time_ms,
+            turn_started_at=now,
         )
 
-        return snapshot
-    
+    def _side_to_move_is_white(self, snapshot: GameSnapshot) -> bool:
+        return chess.Board(snapshot.fen).turn == chess.WHITE
+
+    def remaining_time_for_turn(self, *, snapshot: GameSnapshot) -> int:
+        if snapshot.initial_time_ms == 0 or snapshot.turn_started_at is None:
+            return 0
+
+        is_white_turn = self._side_to_move_is_white(snapshot)
+        remaining_ms = (
+            snapshot.white_time_left_ms if is_white_turn else snapshot.black_time_left_ms
+        )
+        elapsed_ms = int(
+            (datetime.now(UTC) - snapshot.turn_started_at).total_seconds() * 1000
+        )
+        return max(remaining_ms - elapsed_ms, 0)
+
+    def apply_timeout(self, *, snapshot: GameSnapshot) -> GameSnapshot | None:
+        """Returns a finished snapshot if the side to move has flagged, else None."""
+        if (
+            snapshot.status != GameStatus.ACTIVE
+            or snapshot.turn_started_at is None
+            or snapshot.initial_time_ms == 0
+        ):
+            return None
+
+        is_white_turn = self._side_to_move_is_white(snapshot)
+        remaining_ms = (
+            snapshot.white_time_left_ms if is_white_turn else snapshot.black_time_left_ms
+        )
+        now = datetime.now(UTC)
+        elapsed_ms = int((now - snapshot.turn_started_at).total_seconds() * 1000)
+
+        if elapsed_ms < remaining_ms:
+            return None
+
+        result = GameResult.BLACK_WIN if is_white_turn else GameResult.WHITE_WIN
+        time_field = "white_time_left_ms" if is_white_turn else "black_time_left_ms"
+
+        return snapshot.model_copy(update={
+            "status": GameStatus.FINISHED,
+            "result": result,
+            "termination": TerminationType.TIMEOUT,
+            time_field: 0,
+            "last_move_at": now,
+        })
+
     def apply_move(
         self,
         *,
@@ -73,17 +112,16 @@ class ChessGameService:
         if snapshot.status != GameStatus.ACTIVE:
             raise GameAlreadyFinishedError("game_not_active")
 
-        # reconstruct board from move history
-        board = chess.Board()
-        for move in snapshot.moves:
-            board.push_uci(move)
+        timed_out_snapshot = self.apply_timeout(snapshot=snapshot)
+        if timed_out_snapshot is not None:
+            return timed_out_snapshot
 
+        board = chess.Board(snapshot.fen)
         is_white_turn = board.turn == chess.WHITE
 
         expected_player = (
             snapshot.white.user_id if is_white_turn else snapshot.black.user_id
         )
-
         if player_id != expected_player:
             raise NotPlayersTurnError("not_your_turn")
 
@@ -98,8 +136,21 @@ class ChessGameService:
         board.push(move)
 
         new_moves = snapshot.moves + [uci_move]
+        now = datetime.now(UTC)
 
-        # detect game end conditions
+        time_updates: dict = {"turn_started_at": now}
+        if snapshot.initial_time_ms > 0 and snapshot.turn_started_at is not None:
+            elapsed_ms = int((now - snapshot.turn_started_at).total_seconds() * 1000)
+            mover_time_left = (
+                snapshot.white_time_left_ms if is_white_turn else snapshot.black_time_left_ms
+            )
+            updated_mover_time_left = (
+                max(mover_time_left - elapsed_ms, 0) + snapshot.increment_ms
+            )
+            time_updates[
+                "white_time_left_ms" if is_white_turn else "black_time_left_ms"
+            ] = updated_mover_time_left
+
         status = GameStatus.ACTIVE
         result = None
         termination = None
@@ -108,27 +159,21 @@ class ChessGameService:
             status = GameStatus.FINISHED
             termination = TerminationType.CHECKMATE
             result = (
-                GameResult.WHITE_WIN
-                if board.turn == chess.BLACK
-                else GameResult.BLACK_WIN
+                GameResult.WHITE_WIN if board.turn == chess.BLACK else GameResult.BLACK_WIN
             )
-
         elif board.is_stalemate():
             status = GameStatus.FINISHED
             termination = TerminationType.STALEMATE
             result = GameResult.DRAW
-
         elif board.is_insufficient_material():
             status = GameStatus.FINISHED
             termination = TerminationType.INSUFFICIENT_MATERIAL
             result = GameResult.DRAW
-
         elif board.can_claim_fifty_moves():
             status = GameStatus.FINISHED
             termination = TerminationType.FIFTY_MOVE_RULE
             result = GameResult.DRAW
-
-        elif board.can_claim_threefold_repetition():
+        elif self._is_threefold_repetition(new_moves):
             status = GameStatus.FINISHED
             termination = TerminationType.THREEFOLD_REPETITION
             result = GameResult.DRAW
@@ -140,11 +185,17 @@ class ChessGameService:
             "status": status,
             "result": result,
             "termination": termination,
-            "last_move_at": datetime.now(UTC),
+            "last_move_at": now,
+            **time_updates,
         })
 
-    def build_pgn(self, *, snapshot: GameSnapshot) -> str:
+    def _is_threefold_repetition(self, moves: list[str]) -> bool:
         board = chess.Board()
+        for uci_move in moves:
+            board.push_uci(uci_move)
+        return board.can_claim_threefold_repetition()
+
+    def build_pgn(self, *, snapshot: GameSnapshot) -> str:
         game = chess.pgn.Game()
         game.headers["Event"] = "BlunderLive game"
         game.headers["Site"] = "BlunderLive"
@@ -157,10 +208,6 @@ class ChessGameService:
 
         node = game
         for uci_move in snapshot.moves:
-            move = chess.Move.from_uci(uci_move)
-            node = node.add_variation(move)
-            board.push(move)
+            node = node.add_variation(chess.Move.from_uci(uci_move))
 
         return str(game)
-    
-    

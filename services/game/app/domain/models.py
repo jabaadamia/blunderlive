@@ -29,5 +29,8 @@ class GameSnapshot(BaseModel):
     rating_category: str | None = None
     initial_time_ms: int = Field(default=0, ge=0)
     increment_ms: int = Field(default=0, ge=0)
+    white_time_left_ms: int = Field(default=0, ge=0)
+    black_time_left_ms: int = Field(default=0, ge=0)
+    turn_started_at: datetime | None = None
     draw_offer_by: UUID | None = None
     version: int = Field(default=0, ge=0)
