@@ -6,8 +6,10 @@ import Link from "next/link";
 import BoardWithControls from "@/components/chessboard/BoardWithControls";
 import { getTokenUserId } from "@/features/auth/lib/jwt";
 import { useAuth } from "@/providers/auth-provider";
-import { pgnToUciMoves } from "@/lib/chessboard/history";
+import { buildMoveHistoryFromPgn } from "@/lib/chessboard/history";
+import { INITIAL_FEN } from "@/lib/chessboard/fen";
 import { SiteNav } from "@/components/site-nav";
+import { Timer } from "@/features/game/components/timer";
 import {
   getGameDetail,
   type GameDetail,
@@ -22,6 +24,7 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   const { accessToken } = useAuth();
   const [gameDetail, setGameDetail] = useState<GameDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPly, setSelectedPly] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,41 +58,73 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   const isFlipped = myPlayerColor === "black";
   const pgn = gameDetail?.pgn;
 
+  const moveHistory = useMemo(() => {
+    if (!pgn || !gameDetail) return [];
+    return buildMoveHistoryFromPgn(pgn, INITIAL_FEN, gameDetail.initial_time_ms);
+  }, [pgn, gameDetail]);
+
   const uciMoves = useMemo(() => {
-    if (!pgn) return [];
-    return pgnToUciMoves(pgn);
-  }, [pgn]);
+    return moveHistory.map((m) => m.uci);
+  }, [moveHistory]);
+
+  const topColor = isFlipped ? "white" : "black";
+  const bottomColor = isFlipped ? "black" : "white";
 
   const topPlayer = isFlipped ? gameDetail?.white_player : gameDetail?.black_player;
   const bottomPlayer = isFlipped ? gameDetail?.black_player : gameDetail?.white_player;
   const topDelta = isFlipped ? gameDetail?.white_rating_delta : gameDetail?.black_rating_delta;
   const bottomDelta = isFlipped ? gameDetail?.black_rating_delta : gameDetail?.white_rating_delta;
 
+  const currentWhiteTimeMs = useMemo(() => {
+    if (!gameDetail) return 0;
+    if (selectedPly <= 0) return gameDetail.initial_time_ms;
+    const entry = moveHistory[Math.min(selectedPly, moveHistory.length) - 1];
+    return entry?.whiteTimeLeftMs ?? gameDetail.initial_time_ms;
+  }, [gameDetail, moveHistory, selectedPly]);
+
+  const currentBlackTimeMs = useMemo(() => {
+    if (!gameDetail) return 0;
+    if (selectedPly <= 0) return gameDetail.initial_time_ms;
+    const entry = moveHistory[Math.min(selectedPly, moveHistory.length) - 1];
+    return entry?.blackTimeLeftMs ?? gameDetail.initial_time_ms;
+  }, [gameDetail, moveHistory, selectedPly]);
+
+  const topTimeMs = topColor === "white" ? currentWhiteTimeMs : currentBlackTimeMs;
+  const bottomTimeMs = bottomColor === "white" ? currentWhiteTimeMs : currentBlackTimeMs;
+
   const renderPlayer = (
     player: PlayerDetail | null | undefined,
     delta: number | null | undefined,
+    remainingMs?: number,
   ) => {
     if (!player) return <div className="h-6" />;
+    const isTimed = Boolean(gameDetail && gameDetail.initial_time_ms > 0);
     return (
-      <div className="flex items-center gap-2 font-medium">
-        <Link
-          href={`/profile/${player.id}`}
-          className="text-neutral-900 hover:underline dark:text-neutral-100"
-        >
-          {player.username}
-        </Link>
-        {delta !== undefined && delta !== null && (
-          <span
-            className={`text-sm ${delta > 0
-              ? "text-green-600 dark:text-green-400"
-              : delta < 0
-                ? "text-red-600 dark:text-red-400"
-                : "text-neutral-500"
-              }`}
+      <div className="flex w-full items-center justify-between">
+        <div className="flex items-center gap-2 font-medium">
+          <Link
+            href={`/profile/${player.id}`}
+            className="text-neutral-900 hover:underline dark:text-neutral-100"
           >
-            {delta > 0 ? `+${delta}` : delta}
-          </span>
-        )}
+            {player.username}
+          </Link>
+          {delta !== undefined && delta !== null && (
+            <span
+              className={`text-sm ${
+                delta > 0
+                  ? "text-green-600 dark:text-green-400"
+                  : delta < 0
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-neutral-500"
+              }`}
+            >
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          )}
+        </div>
+        {isTimed && remainingMs !== undefined ? (
+          <Timer remainingMs={remainingMs} isRunning={false} syncedAt={0} />
+        ) : null}
       </div>
     );
   };
@@ -145,12 +180,14 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
             key={gameId}
             orientation={myPlayerColor ?? "white"}
             moves={uciMoves}
+            customMoveHistory={moveHistory}
+            onPlyChange={setSelectedPly}
             interactionEnabled={false}
             controlBar
             pgnViewer
             forLiveGame={false}
-            topPlayerElement={renderPlayer(topPlayer, topDelta)}
-            bottomPlayerElement={renderPlayer(bottomPlayer, bottomDelta)}
+            topPlayerElement={renderPlayer(topPlayer, topDelta, topTimeMs)}
+            bottomPlayerElement={renderPlayer(bottomPlayer, bottomDelta, bottomTimeMs)}
             gameStatusElement={statusElement}
           />
         </div>
@@ -158,3 +195,4 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
     </main>
   );
 }
+

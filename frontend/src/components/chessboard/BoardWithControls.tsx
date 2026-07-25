@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { buildMoveHistory } from '@/lib/chessboard/history';
+import { buildMoveHistory, type MoveHistoryEntry } from '@/lib/chessboard/history';
 import { INITIAL_FEN, parseFen } from '@/lib/chessboard/fen';
 import { indexToCoord } from '@/lib/chessboard/coords';
 import { getLegalMovesOf, makeMove } from '@/lib/chessboard/moveGen';
@@ -36,6 +36,8 @@ interface BoardWithControlsProps {
   topPlayerElement?: React.ReactNode;
   bottomPlayerElement?: React.ReactNode;
   gameStatusElement?: React.ReactNode;
+  customMoveHistory?: MoveHistoryEntry[];
+  onPlyChange?: (ply: number) => void;
 }
 
 export default function BoardWithControls({
@@ -60,6 +62,8 @@ export default function BoardWithControls({
   topPlayerElement,
   bottomPlayerElement,
   gameStatusElement,
+  customMoveHistory,
+  onPlyChange,
 }: BoardWithControlsProps) {
   const isControlled = typeof onMove === 'function';
   const controlledGameState = useMemo(() => parseFen(fen), [fen]);
@@ -79,11 +83,15 @@ export default function BoardWithControls({
   const latestGameState = isControlled ? controlledGameState : uncontrolledGameState;
   const displayMoves = movesProp !== undefined ? movesProp : localMoves;
   const moveHistory = useMemo(
-    () => buildMoveHistory(displayMoves, initialFen),
-    [displayMoves, initialFen],
+    () => customMoveHistory ?? buildMoveHistory(displayMoves, initialFen),
+    [customMoveHistory, displayMoves, initialFen],
   );
   const totalPly = moveHistory.length;
   const currentPly = isFollowingLatest ? totalPly : Math.min(reviewPly, totalPly);
+
+  useEffect(() => {
+    onPlyChange?.(currentPly);
+  }, [currentPly, onPlyChange]);
 
   const gameState = useMemo(() => {
     if (currentPly === totalPly) {
@@ -317,11 +325,11 @@ export default function BoardWithControls({
       </div>
 
       {/* Sidebar column — stacks below board column on small screens */}
-      <div className={`flex min-w-0 flex-col gap-3 xl:h-full xl:min-h-0 ${topPlayerElement ? "xl:pt-8" : "xl:pt-0"
+      <div className={`flex min-w-0 flex-col items-center xl:items-stretch gap-3 xl:h-full xl:min-h-0 ${topPlayerElement ? "xl:pt-[3rem]" : "xl:pt-0"
         } ${bottomPlayerElement ? "xl:pb-8" : "xl:pb-0"
         }`}>
         {pgnViewer ? (
-          <div className="flex min-h-0 w-full max-w-[20rem] flex-1 flex-col xl:mx-0">
+          <div className="flex min-h-0 w-full max-w-[20rem] flex-1 flex-col mx-auto xl:mx-0">
             <PGNViewer
               entries={moveHistory}
               currentPly={currentPly}
@@ -331,13 +339,13 @@ export default function BoardWithControls({
         ) : null}
 
         {gameStatusElement ? (
-          <div className="w-full max-w-[20rem]">
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0">
             {gameStatusElement}
           </div>
         ) : null}
 
         {controlBar ? (
-          <div>
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0">
             <ControlBar
               canGoToFirst={currentPly > 0}
               canGoToPrevious={currentPly > 0}
@@ -355,7 +363,7 @@ export default function BoardWithControls({
         ) : null}
 
         {forLiveGame ? (
-          <div>
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0">
             <DrawResignBar
               canOfferDraw={canOfferDraw}
               canResign={canResign}

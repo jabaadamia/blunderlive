@@ -15,6 +15,8 @@ export type MoveHistoryEntry = {
   move: Move;
   state: GameState;
   fen: string;
+  whiteTimeLeftMs?: number;
+  blackTimeLeftMs?: number;
 };
 
 const SAN_PIECE_SYMBOL: Record<PieceType, string> = {
@@ -244,8 +246,8 @@ export function pgnToUciMoves(pgn: string, initialFen = INITIAL_FEN): string[] {
   let state = parseFen(initialFen);
   const uciMoves: string[] = [];
 
-  for (const san of extractSanTokens(pgn)) {
-    const move = sanToMove(state, san);
+  for (const item of extractSanAndClockTokens(pgn)) {
+    const move = sanToMove(state, item.san);
     if (!move) break; // malformed/unparseable PGN - stop rather than desync
 
     uciMoves.push(indexToCoord(move.from) + indexToCoord(move.to) + (move.promotion ?? ""));
@@ -254,3 +256,103 @@ export function pgnToUciMoves(pgn: string, initialFen = INITIAL_FEN): string[] {
 
   return uciMoves;
 }
+
+export function extractMovetext(pgn: string): string {
+  const parts = pgn.trim().split(/\r?\n\r?\n/);
+  if (parts.length > 1) {
+    return parts.slice(1).join("\n");
+  }
+  return pgn.replace(/^\s*\[[^\]]*\]\s*/gm, "").trim();
+}
+
+export function parsePgnClockMs(comment: string): number | null {
+  const match = comment.match(/%clk\s+(?:(\d+):)?(\d+):(\d+)(?:\.(\d+))?/i);
+  if (!match) return null;
+
+  const hours = match[1] ? parseInt(match[1], 10) : 0;
+  const minutes = parseInt(match[2], 10);
+  const seconds = parseInt(match[3], 10);
+  const msFraction = match[4] ? parseInt(match[4].padEnd(3, "0").slice(0, 3), 10) : 0;
+
+  return (hours * 3600 + minutes * 60 + seconds) * 1000 + msFraction;
+}
+
+export interface PgnMoveToken {
+  san: string;
+  clockMs: number | null;
+}
+
+export function extractSanAndClockTokens(pgn: string): PgnMoveToken[] {
+  const movetext = extractMovetext(pgn);
+  const tokenRegex = /(\{[^}]*\})|(\S+)/g;
+  const result: PgnMoveToken[] = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = tokenRegex.exec(movetext)) !== null) {
+    const commentGroup = match[1];
+    const textGroup = match[2];
+
+    if (commentGroup) {
+      if (result.length > 0) {
+        const clock = parsePgnClockMs(commentGroup);
+        if (clock !== null) {
+          result[result.length - 1].clockMs = clock;
+        }
+      }
+    } else if (textGroup) {
+      if (
+        !/^\d+\.+$/.test(textGroup) &&
+        !["1-0", "0-1", "1/2-1/2", "*"].includes(textGroup)
+      ) {
+        result.push({ san: textGroup, clockMs: null });
+      }
+    }
+  }
+
+  return result;
+}
+
+export function buildMoveHistoryFromPgn(
+  pgn: string,
+  initialFen = INITIAL_FEN,
+  initialTimeMs = 0,
+): MoveHistoryEntry[] {
+  const tokens = extractSanAndClockTokens(pgn);
+  const history: MoveHistoryEntry[] = [];
+  let state = parseFen(initialFen);
+
+  let currentWhiteMs = initialTimeMs;
+  let currentBlackMs = initialTimeMs;
+
+  for (const [index, token] of tokens.entries()) {
+    const move = sanToMove(state, token.san);
+    if (!move) break;
+
+    const uci = indexToCoord(move.from) + indexToCoord(move.to) + (move.promotion ?? "");
+    const san = moveToSan(state, move);
+    state = makeMove(state, move);
+
+    const isWhiteMove = index % 2 === 0;
+    if (token.clockMs !== null) {
+      if (isWhiteMove) {
+        currentWhiteMs = token.clockMs;
+      } else {
+        currentBlackMs = token.clockMs;
+      }
+    }
+
+    history.push({
+      ply: index + 1,
+      uci,
+      san,
+      move,
+      state,
+      fen: stateToFen(state),
+      whiteTimeLeftMs: currentWhiteMs,
+      blackTimeLeftMs: currentBlackMs,
+    });
+  }
+
+  return history;
+}
+
