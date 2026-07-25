@@ -45,6 +45,7 @@ class ChessGameService:
                 username=resolved_black.username, rating=resolved_black.rating,
             ),
             moves=[],
+            move_clocks_ms=[],
             move_count=0,
             rated=rated,
             rating_category=rating_category,
@@ -136,6 +137,7 @@ class ChessGameService:
         board.push(move)
 
         new_moves = snapshot.moves + [uci_move]
+        new_move_clocks_ms = list(snapshot.move_clocks_ms)
         now = datetime.now(UTC)
 
         time_updates: dict = {"turn_started_at": now}
@@ -150,6 +152,9 @@ class ChessGameService:
             time_updates[
                 "white_time_left_ms" if is_white_turn else "black_time_left_ms"
             ] = updated_mover_time_left
+            new_move_clocks_ms.append(updated_mover_time_left)
+        else:
+            new_move_clocks_ms.append(0)
 
         status = GameStatus.ACTIVE
         result = None
@@ -181,6 +186,7 @@ class ChessGameService:
         return snapshot.model_copy(update={
             "fen": board.fen(),
             "moves": new_moves,
+            "move_clocks_ms": new_move_clocks_ms,
             "move_count": len(new_moves),
             "status": status,
             "result": result,
@@ -207,7 +213,22 @@ class ChessGameService:
         )
 
         node = game
-        for uci_move in snapshot.moves:
+        for index, uci_move in enumerate(snapshot.moves):
             node = node.add_variation(chess.Move.from_uci(uci_move))
+            if (
+                snapshot.initial_time_ms > 0
+                and index < len(snapshot.move_clocks_ms)
+            ):
+                clock_ms = snapshot.move_clocks_ms[index]
+                node.comment = f"[%clk {_format_pgn_clock(clock_ms)}]"
 
         return str(game)
+
+
+def _format_pgn_clock(ms: int) -> str:
+    total_seconds = max(0, ms) // 1000
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
+

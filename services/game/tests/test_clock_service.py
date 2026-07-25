@@ -133,6 +133,22 @@ def test_apply_move_updates_mover_clock_and_increment() -> None:
     assert 57000 <= updated.white_time_left_ms <= 59000
     assert updated.black_time_left_ms == 60000
     assert updated.turn_started_at is not None
+    assert len(updated.move_clocks_ms) == 1
+    assert 57000 <= updated.move_clocks_ms[0] <= 59000
+
+
+def test_build_pgn_includes_clock_comments() -> None:
+    chess_service = ChessGameService()
+    snapshot = build_test_snapshot(
+        initial_time_ms=300000,
+        moves=["e2e4", "e7e5"],
+    ).model_copy(update={
+        "move_clocks_ms": [298000, 296000],
+    })
+
+    pgn = chess_service.build_pgn(snapshot=snapshot)
+    assert "[%clk 0:04:58]" in pgn
+    assert "[%clk 0:04:56]" in pgn
 
 
 def test_apply_move_intercepts_flag_fall() -> None:
