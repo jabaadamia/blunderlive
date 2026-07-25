@@ -10,6 +10,8 @@ from ..domain.enums import GameStatus
 from ..domain.exceptions import GameNotFoundError
 from ..domain.models import GameSnapshot
 
+FINISHED_GAME_SNAPSHOT_TTL_SECONDS = 1800
+
 
 def build_time_control_bucket(rated: bool, initial_time_ms: int, increment_ms: int) -> str:
     rated_label = "rated" if rated else "casual"
@@ -293,6 +295,10 @@ class MatchmakingRepository:
                         )
                         pipe.delete(
                             self._active_game_key(snapshot.black.user_id)
+                        )
+                        pipe.expire(
+                            snapshot_key,
+                            FINISHED_GAME_SNAPSHOT_TTL_SECONDS,
                         )
 
                     if snapshot.status == GameStatus.FINISHED:
