@@ -111,6 +111,7 @@ export default function BoardWithControls({
       setEditableTree(moveTree);
       setCurrentNodeId(ROOT_NODE_ID);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moveTree]);
 
   const latestGameState = isControlled ? controlledGameState : uncontrolledGameState;
