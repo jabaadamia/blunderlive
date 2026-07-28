@@ -6,7 +6,6 @@ import Link from "next/link";
 import BoardWithControls from "@/components/chessboard/BoardWithControls";
 import { getTokenUserId } from "@/features/auth/lib/jwt";
 import { useAuth } from "@/providers/auth-provider";
-import { buildMoveHistoryFromPgn } from "@/lib/chessboard/history";
 import { INITIAL_FEN } from "@/lib/chessboard/fen";
 import { SiteNav } from "@/components/site-nav";
 import { Timer } from "@/features/game/components/timer";
@@ -15,6 +14,7 @@ import {
   type GameDetail,
   type PlayerDetail,
 } from "@/features/game/lib/game-api";
+import { buildMoveTreeFromPgn, ROOT_NODE_ID } from "@/lib/chessboard/history";
 
 interface HistoryBoardProps {
   gameId: string;
@@ -24,7 +24,8 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   const { accessToken } = useAuth();
   const [gameDetail, setGameDetail] = useState<GameDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPly, setSelectedPly] = useState(0);
+  const [currentNodeId, setCurrentNodeId] = useState(ROOT_NODE_ID);
+  const [prevGameId, setPrevGameId] = useState(gameId);
 
   useEffect(() => {
     let isMounted = true;
@@ -58,15 +59,15 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   const isFlipped = myPlayerColor === "black";
   const pgn = gameDetail?.pgn;
 
-  const moveHistory = useMemo(() => {
-    if (!pgn || !gameDetail) return [];
-    return buildMoveHistoryFromPgn(pgn, INITIAL_FEN, gameDetail.initial_time_ms);
+  const tree = useMemo(() => {
+    if (!pgn || !gameDetail) return null;
+    return buildMoveTreeFromPgn(pgn, INITIAL_FEN, gameDetail.initial_time_ms);
   }, [pgn, gameDetail]);
 
-  const uciMoves = useMemo(() => {
-    return moveHistory.map((m) => m.uci);
-  }, [moveHistory]);
-
+  if (gameId !== prevGameId) {
+    setPrevGameId(gameId);
+    setCurrentNodeId(ROOT_NODE_ID);
+  }
   const topColor = isFlipped ? "white" : "black";
   const bottomColor = isFlipped ? "black" : "white";
 
@@ -75,19 +76,9 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   const topDelta = isFlipped ? gameDetail?.white_rating_delta : gameDetail?.black_rating_delta;
   const bottomDelta = isFlipped ? gameDetail?.black_rating_delta : gameDetail?.white_rating_delta;
 
-  const currentWhiteTimeMs = useMemo(() => {
-    if (!gameDetail) return 0;
-    if (selectedPly <= 0) return gameDetail.initial_time_ms;
-    const entry = moveHistory[Math.min(selectedPly, moveHistory.length) - 1];
-    return entry?.whiteTimeLeftMs ?? gameDetail.initial_time_ms;
-  }, [gameDetail, moveHistory, selectedPly]);
-
-  const currentBlackTimeMs = useMemo(() => {
-    if (!gameDetail) return 0;
-    if (selectedPly <= 0) return gameDetail.initial_time_ms;
-    const entry = moveHistory[Math.min(selectedPly, moveHistory.length) - 1];
-    return entry?.blackTimeLeftMs ?? gameDetail.initial_time_ms;
-  }, [gameDetail, moveHistory, selectedPly]);
+  const currentNode = tree?.nodes[currentNodeId];
+  const currentWhiteTimeMs = currentNode?.whiteTimeLeftMs ?? gameDetail?.initial_time_ms ?? 0;
+  const currentBlackTimeMs = currentNode?.blackTimeLeftMs ?? gameDetail?.initial_time_ms ?? 0;
 
   const topTimeMs = topColor === "white" ? currentWhiteTimeMs : currentBlackTimeMs;
   const bottomTimeMs = bottomColor === "white" ? currentWhiteTimeMs : currentBlackTimeMs;
@@ -110,13 +101,12 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
           </Link>
           {delta !== undefined && delta !== null && (
             <span
-              className={`text-sm ${
-                delta > 0
-                  ? "text-green-600 dark:text-green-400"
-                  : delta < 0
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-neutral-500"
-              }`}
+              className={`text-sm ${delta > 0
+                ? "text-green-600 dark:text-green-400"
+                : delta < 0
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-neutral-500"
+                }`}
             >
               {delta > 0 ? `+${delta}` : delta}
             </span>
@@ -179,10 +169,9 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
           <BoardWithControls
             key={gameId}
             orientation={myPlayerColor ?? "white"}
-            moves={uciMoves}
-            customMoveHistory={moveHistory}
-            onPlyChange={setSelectedPly}
-            interactionEnabled={false}
+            moveTree={tree ?? undefined}
+            onNodeChange={setCurrentNodeId}
+            interactionEnabled={true}
             controlBar
             pgnViewer
             forLiveGame={false}
