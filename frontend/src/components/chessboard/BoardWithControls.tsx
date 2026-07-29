@@ -7,6 +7,7 @@ import {
   buildLinearMoveTree,
   buildMoveHistory,
   getActiveLine,
+  getLegalMoveFromUci,
   getPathToNode,
   ROOT_NODE_ID,
   type MoveHistoryEntry,
@@ -53,6 +54,12 @@ interface BoardWithControlsProps {
   // to a flat move list.
   moveTree?: MoveTree;
   onNodeChange?: (nodeId: string) => void;
+  onFenChange?: (fen: string) => void;
+  evaluationBar?: (orientation: 'white' | 'black') => React.ReactNode;
+  analysisPanel?: React.ReactNode;
+  onSpacebarBestMove?: () => void;
+  bestMoveUci?: string;
+  onFlipBoard?: (orientation: 'white' | 'black') => void;
 }
 
 export default function BoardWithControls({
@@ -81,6 +88,12 @@ export default function BoardWithControls({
   onPlyChange,
   moveTree,
   onNodeChange,
+  onFenChange,
+  evaluationBar,
+  analysisPanel,
+  onSpacebarBestMove,
+  bestMoveUci,
+  onFlipBoard,
 }: BoardWithControlsProps) {
   const isControlled = typeof onMove === 'function';
   const usingTreeMode = moveTree !== undefined;
@@ -88,9 +101,21 @@ export default function BoardWithControls({
   const controlledGameState = useMemo(() => parseFen(fen), [fen]);
   const initialGameState = useMemo(() => parseFen(initialFen), [initialFen]);
   const [uncontrolledGameState, setUncontrolledGameState] = useState(() => initialGameState);
-  const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>(orientation);
+  const [isBoardFlipped, setIsBoardFlipped] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [highlightIndices, setHighlightIndices] = useState<number[]>([]);
+
+  // Reset flip when natural orientation changes (e.g. seat resolved)
+  useEffect(() => {
+    setIsBoardFlipped(false);
+  }, [orientation]);
+
+  const displayOrientation = isBoardFlipped
+    ? (orientation === 'white' ? 'black' : 'white')
+    : orientation;
+
+  const displayTopElement = isBoardFlipped ? bottomPlayerElement : topPlayerElement;
+  const displayBottomElement = isBoardFlipped ? topPlayerElement : bottomPlayerElement;
   const [pendingPromotion, setPendingPromotion] = useState<{ from: number; to: number } | null>(
     null,
   );
@@ -145,6 +170,17 @@ export default function BoardWithControls({
   useEffect(() => {
     if (usingTreeMode) onNodeChange?.(currentNodeId);
   }, [usingTreeMode, currentNodeId, onNodeChange]);
+
+  const currentFen = useMemo(() => {
+    if (usingTreeMode) {
+      return editableTree?.nodes[currentNodeId]?.fen ?? initialFen;
+    }
+    return fen;
+  }, [usingTreeMode, editableTree, currentNodeId, initialFen, fen]);
+
+  useEffect(() => {
+    onFenChange?.(currentFen);
+  }, [currentFen, onFenChange]);
 
   const gameState = useMemo(() => {
     if (usingTreeMode) {
@@ -247,6 +283,17 @@ export default function BoardWithControls({
       } else if (event.key === 'End') {
         event.preventDefault();
         navigateToPly(totalPly);
+      } else if (event.code === 'Space' || event.key === ' ') {
+        if (onSpacebarBestMove) {
+          event.preventDefault();
+          onSpacebarBestMove();
+        } else if (bestMoveUci) {
+          event.preventDefault();
+          const move = getLegalMoveFromUci(gameState, bestMoveUci);
+          if (move) {
+            applyMove(move.from, move.to, move.promotion);
+          }
+        }
       }
     }
 
@@ -254,7 +301,7 @@ export default function BoardWithControls({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentPly, navigateToPly, totalPly]);
+  }, [currentPly, navigateToPly, totalPly, bestMoveUci, onSpacebarBestMove, gameState]);
 
   function applyMove(from: number, to: number, promotion?: PieceType) {
     if (usingTreeMode) {
@@ -411,27 +458,34 @@ export default function BoardWithControls({
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-stretch xl:gap-4">
       <div className="flex min-h-0 min-w-0 flex-col gap-2 xl:row-span-full">
-        {topPlayerElement ? (
+        {displayTopElement ? (
           <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))] flex items-center justify-between">
-            {topPlayerElement}
+            {displayTopElement}
           </div>
         ) : null}
-        <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))]">
-          <Board
-            board={gameState.board}
-            orientation={boardOrientation}
-            activeColor={activeColor}
-            selectedIndex={selectedIndex}
-            highlightIndices={highlightIndices}
-            gridRef={boardGridRef}
-            onSquareClick={handleSquareClick}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          />
+        <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))] grid grid-cols-[auto_1fr] gap-2.5">
+          {evaluationBar ? (
+            <div className="h-full min-h-[10rem]">
+              {evaluationBar(displayOrientation)}
+            </div>
+          ) : null}
+          <div className="min-w-0">
+            <Board
+              board={gameState.board}
+              orientation={displayOrientation}
+              activeColor={activeColor}
+              selectedIndex={selectedIndex}
+              highlightIndices={highlightIndices}
+              gridRef={boardGridRef}
+              onSquareClick={handleSquareClick}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            />
+          </div>
         </div>
-        {bottomPlayerElement ? (
+        {displayBottomElement ? (
           <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))] flex items-center justify-between">
-            {bottomPlayerElement}
+            {displayBottomElement}
           </div>
         ) : null}
 
@@ -439,7 +493,7 @@ export default function BoardWithControls({
           <PromotionPicker
             toIndex={pendingPromotion.to}
             color={gameState.turn}
-            orientation={boardOrientation}
+            orientation={displayOrientation}
             boardRef={boardGridRef}
             onPick={handlePromotionPick}
             onCancel={handlePromotionCancel}
@@ -447,27 +501,11 @@ export default function BoardWithControls({
         ) : null}
       </div>
 
-      <div className={`flex min-w-0 flex-col items-center xl:items-stretch gap-3 xl:h-full xl:min-h-0 ${topPlayerElement ? "xl:pt-[3rem]" : "xl:pt-0"
-        } ${bottomPlayerElement ? "xl:pb-8" : "xl:pb-0"
+      <div className={`flex min-w-0 flex-col items-center xl:items-stretch gap-3 xl:h-full xl:min-h-0 xl:overflow-y-auto ${displayTopElement ? "xl:pt-[3rem]" : "xl:pt-0"
+        } ${displayBottomElement ? "xl:pb-8" : "xl:pb-0"
         }`}>
-        {pgnViewer ? (
-          <div className="flex min-h-0 w-full max-w-[20rem] flex-1 flex-col mx-auto xl:mx-0">
-            <PGNViewer
-              tree={displayTree}
-              currentNodeId={displayCurrentNodeId}
-              onSelectNode={handleViewerSelectNode}
-            />
-          </div>
-        ) : null}
-
-        {gameStatusElement ? (
-          <div className="w-full max-w-[20rem] mx-auto xl:mx-0">
-            {gameStatusElement}
-          </div>
-        ) : null}
-
         {controlBar ? (
-          <div className="w-full max-w-[20rem] mx-auto xl:mx-0">
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0 xl:order-4">
             <ControlBar
               canGoToFirst={currentPly > 0}
               canGoToPrevious={currentPly > 0}
@@ -477,15 +515,39 @@ export default function BoardWithControls({
               onPreviousMove={() => navigateToPly(currentPly - 1)}
               onNextMove={() => navigateToPly(currentPly + 1)}
               onLastMove={() => navigateToPly(totalPly)}
-              onFlipBoard={() =>
-                setBoardOrientation((value) => (value === 'white' ? 'black' : 'white'))
-              }
+              onFlipBoard={() => {
+                const nextOrientation = isBoardFlipped ? orientation : (orientation === 'white' ? 'black' : 'white');
+                setIsBoardFlipped(prev => !prev);
+                onFlipBoard?.(nextOrientation);
+              }}
+            />
+          </div>
+        ) : null}
+
+        {analysisPanel ? (
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0 xl:order-1">
+            {analysisPanel}
+          </div>
+        ) : null}
+
+        {gameStatusElement ? (
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0 xl:order-2">
+            {gameStatusElement}
+          </div>
+        ) : null}
+
+        {pgnViewer ? (
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0 xl:order-3 h-[20rem] shrink-0 overflow-hidden">
+            <PGNViewer
+              tree={displayTree}
+              currentNodeId={displayCurrentNodeId}
+              onSelectNode={handleViewerSelectNode}
             />
           </div>
         ) : null}
 
         {forLiveGame ? (
-          <div className="w-full max-w-[20rem] mx-auto xl:mx-0">
+          <div className="w-full max-w-[20rem] mx-auto xl:mx-0 xl:order-5">
             <DrawResignBar
               canOfferDraw={canOfferDraw}
               canResign={canResign}

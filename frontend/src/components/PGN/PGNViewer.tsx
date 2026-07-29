@@ -325,7 +325,7 @@ export default function PGNViewer({ tree, currentNodeId, onSelectNode }: PGNView
   }, [tree, rootNode, currentNodeId, activeLineIds, onSelectNode]);
 
   return (
-    <aside className="flex max-h-64 xl:max-h-[28rem] w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 xl:h-full xl:min-h-28 xl:max-w-[20rem]">
+    <aside className="flex h-full w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 xl:h-full xl:min-h-28 xl:max-w-[20rem]">
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3">
         {content.length > 0 ? <div>{content}</div> : null}
       </div>
