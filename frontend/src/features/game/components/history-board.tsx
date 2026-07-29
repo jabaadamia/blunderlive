@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import BoardWithControls from "@/components/chessboard/BoardWithControls";
 import { getTokenUserId } from "@/features/auth/lib/jwt";
@@ -15,17 +16,40 @@ import {
   type PlayerDetail,
 } from "@/features/game/lib/game-api";
 import { buildMoveTreeFromPgn, ROOT_NODE_ID } from "@/lib/chessboard/history";
+import { useStockfish } from "@/features/analysis/hooks/useStockfish";
+import { EvaluationBar } from "@/features/analysis/components/EvaluationBar";
+import { EnginePanel } from "@/features/analysis/components/EnginePanel";
 
 interface HistoryBoardProps {
   gameId: string;
 }
 
 export function HistoryBoard({ gameId }: HistoryBoardProps) {
+  const searchParams = useSearchParams();
+  const initialAnalysisQuery = searchParams.get("analysis") === "true";
+
   const { accessToken } = useAuth();
   const [gameDetail, setGameDetail] = useState<GameDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentNodeId, setCurrentNodeId] = useState(ROOT_NODE_ID);
+  const [currentFen, setCurrentFen] = useState(INITIAL_FEN);
   const [prevGameId, setPrevGameId] = useState(gameId);
+
+  const {
+    isEngineReady,
+    isEvaluating,
+    evalResult,
+    isEnabled,
+    setIsEnabled,
+    toggleAnalysis,
+    evaluateFen,
+  } = useStockfish();
+
+  useEffect(() => {
+    if (initialAnalysisQuery) {
+      setIsEnabled(true);
+    }
+  }, [initialAnalysisQuery, setIsEnabled]);
 
   useEffect(() => {
     let isMounted = true;
@@ -83,6 +107,12 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   const topTimeMs = topColor === "white" ? currentWhiteTimeMs : currentBlackTimeMs;
   const bottomTimeMs = bottomColor === "white" ? currentWhiteTimeMs : currentBlackTimeMs;
 
+  useEffect(() => {
+    if (isEnabled && currentFen) {
+      evaluateFen(currentFen);
+    }
+  }, [isEnabled, currentFen, evaluateFen]);
+
   const renderPlayer = (
     player: PlayerDetail | null | undefined,
     delta: number | null | undefined,
@@ -120,7 +150,7 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   };
 
   const statusElement = gameDetail ? (
-    <div className="rounded-sm border border-neutral-200 bg-white px-3 py-2 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 text-sm">
+    <div className="rounded-sm border border-neutral-200 bg-white px-3 py-2 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 text-sm flex flex-col gap-2">
       <div className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center justify-center gap-1.5 flex-wrap">
         <span>
           {gameDetail.result === "1-0" && "White wins"}
@@ -136,7 +166,7 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
       </div>
       {gameDetail.rated &&
         (gameDetail.white_rating_delta !== null || gameDetail.black_rating_delta !== null) && (
-          <div className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-400 flex items-center justify-center gap-3 flex-wrap">
+          <div className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center justify-center gap-3 flex-wrap">
             {gameDetail.white_rating_delta !== null && (
               <span>
                 White: {gameDetail.white_rating_delta >= 0 ? "+" : ""}
@@ -151,6 +181,8 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
             )}
           </div>
         )}
+
+      <div className="pt-1 border-t border-neutral-100 dark:border-neutral-800" />
     </div>
   ) : null;
 
@@ -171,6 +203,7 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
             orientation={myPlayerColor ?? "white"}
             moveTree={tree ?? undefined}
             onNodeChange={setCurrentNodeId}
+            onFenChange={setCurrentFen}
             interactionEnabled={true}
             controlBar
             pgnViewer
@@ -178,10 +211,30 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
             topPlayerElement={renderPlayer(topPlayer, topDelta, topTimeMs)}
             bottomPlayerElement={renderPlayer(bottomPlayer, bottomDelta, bottomTimeMs)}
             gameStatusElement={statusElement}
+            evaluationBar={(orientation) => (
+              <EvaluationBar
+                evalResult={isEnabled ? evalResult : null}
+                isEvaluating={isEvaluating}
+                fen={currentFen}
+                orientation={orientation}
+              />
+            )}
+            analysisPanel={
+              <EnginePanel
+                evalResult={evalResult}
+                isEvaluating={isEvaluating}
+                isEngineReady={isEngineReady}
+                isEnabled={isEnabled}
+                fen={currentFen}
+                onToggle={toggleAnalysis}
+              />
+            }
+            bestMoveUci={isEnabled ? evalResult?.bestMove : undefined}
           />
         </div>
       </div>
     </main>
   );
 }
+
 
