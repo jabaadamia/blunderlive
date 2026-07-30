@@ -286,9 +286,11 @@ export default function BoardWithControls({
       } else if (event.code === 'Space' || event.key === ' ') {
         if (onSpacebarBestMove) {
           event.preventDefault();
+          clearTransientUi();
           onSpacebarBestMove();
         } else if (bestMoveUci) {
           event.preventDefault();
+          clearTransientUi();
           const move = getLegalMoveFromUci(gameState, bestMoveUci);
           if (move) {
             applyMove(move.from, move.to, move.promotion);
@@ -301,7 +303,7 @@ export default function BoardWithControls({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentPly, navigateToPly, totalPly, bestMoveUci, onSpacebarBestMove, gameState]);
+  }, [currentPly, navigateToPly, totalPly, bestMoveUci, onSpacebarBestMove, gameState, clearTransientUi]);
 
   function applyMove(from: number, to: number, promotion?: PieceType) {
     if (usingTreeMode) {
