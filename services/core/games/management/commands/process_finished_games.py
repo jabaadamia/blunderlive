@@ -126,6 +126,7 @@ class Command(BaseCommand):
             redis.xadd(
                 processed_stream,
                 build_processed_game_event(game=result.game),
+                maxlen=10000,
             )
             redis.xack(stream, group, entry_id)
         except (KeyError, ValueError, User.DoesNotExist) as exc:
@@ -137,6 +138,7 @@ class Command(BaseCommand):
                     "error": str(exc),
                     **{f"payload_{key}": str(value) for key, value in fields.items()},
                 },
+                maxlen=10000,
             )
             redis.xack(stream, group, entry_id)
             self.stderr.write(

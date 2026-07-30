@@ -70,7 +70,7 @@ class FakeRedis:
         self.acked: list[tuple[str, str, str]] = []
         self.claimed = []
 
-    async def xadd(self, stream: str, fields: dict) -> str:
+    async def xadd(self, stream: str, fields: dict, **kwargs) -> str:
         self.added.append((stream, fields))
         return "1-0"
 

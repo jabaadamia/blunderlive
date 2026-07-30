@@ -55,6 +55,7 @@ async def publish_finished_game_event(
             snapshot=snapshot,
             chess_service=chess_service,
         ),
+        maxlen=10000,
     )
 
 
