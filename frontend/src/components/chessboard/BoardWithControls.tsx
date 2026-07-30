@@ -286,11 +286,9 @@ export default function BoardWithControls({
       } else if (event.code === 'Space' || event.key === ' ') {
         if (onSpacebarBestMove) {
           event.preventDefault();
-          clearTransientUi();
           onSpacebarBestMove();
         } else if (bestMoveUci) {
           event.preventDefault();
-          clearTransientUi();
           const move = getLegalMoveFromUci(gameState, bestMoveUci);
           if (move) {
             applyMove(move.from, move.to, move.promotion);
@@ -303,7 +301,7 @@ export default function BoardWithControls({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentPly, navigateToPly, totalPly, bestMoveUci, onSpacebarBestMove, gameState, clearTransientUi]);
+  }, [currentPly, navigateToPly, totalPly, bestMoveUci, onSpacebarBestMove, gameState]);
 
   function applyMove(from: number, to: number, promotion?: PieceType) {
     if (usingTreeMode) {
@@ -465,7 +463,7 @@ export default function BoardWithControls({
             {displayTopElement}
           </div>
         ) : null}
-        <div className="mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))] grid grid-cols-[auto_1fr] gap-2.5">
+        <div className={`mx-auto w-full max-w-[min(100%,calc(100vh-12rem))] xl:max-w-[min(100%,calc(100vh-11rem))]${evaluationBar ? ' grid grid-cols-[auto_1fr] gap-2.5' : ''}`}>
           {evaluationBar ? (
             <div className="h-full min-h-[10rem]">
               {evaluationBar(displayOrientation)}
