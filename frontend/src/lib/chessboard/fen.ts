@@ -82,3 +82,22 @@ export const stateToFen = (state: GameState): string => {
 
     return `${fen} ${turn} ${castling} ${ep} ${state.halfMoves} ${state.fullMoves}`;
 };
+
+export const isValidFen = (fen: string): boolean => {
+    const parts = fen.trim().split(/\s+/);
+    if (parts.length !== 6) return false;
+    const [board, turn] = parts;
+    if (turn !== 'w' && turn !== 'b') return false;
+    const ranks = board.split('/');
+    if (ranks.length !== 8) return false;
+    for (const rank of ranks) {
+        let count = 0;
+        for (const ch of rank) {
+            if (/\d/.test(ch)) count += parseInt(ch, 10);
+            else if (/[a-z]/i.test(ch)) count += 1;
+            else return false;
+        }
+        if (count !== 8) return false;
+    }
+    return true;
+};
