@@ -19,24 +19,36 @@ interface RenderCtx {
 function collectLineSegment(
   tree: MoveTree,
   startNodeId: string,
-): { nodes: MoveTreeNode[]; branchNodeId: string | null } {
+): { nodes: MoveTreeNode[]; branchNodeId: string | null; resumeFromId: string | null } {
   const nodes: MoveTreeNode[] = [];
   let nodeId: string | null = startNodeId;
 
   while (nodeId) {
-    const node: MoveTreeNode | undefined = tree.nodes[nodeId];
-    if (!node) break;
+    const node: MoveTreeNode = tree.nodes[nodeId];
 
-    nodes.push(node);
+    if (node.parentId !== null) {
+      nodes.push(node);
+    }
 
-    if (node.children.length !== 1) {
-      return { nodes, branchNodeId: node.children.length > 1 ? node.id : null };
+    if (node.children.length === 0) {
+      return { nodes, branchNodeId: null, resumeFromId: null };
+    }
+
+    if (node.children.length > 1) {
+      const mainChildId = node.children[0];
+      const mainChild = tree.nodes[mainChildId];
+      nodes.push(mainChild);
+      return {
+        nodes,
+        branchNodeId: node.id,
+        resumeFromId: mainChild.children[0] ?? null,
+      };
     }
 
     nodeId = node.children[0];
   }
 
-  return { nodes, branchNodeId: null };
+  return { nodes, branchNodeId: null, resumeFromId: null };
 }
 
 // Font shrinks a bit per depth level, depth 0 (mainline) is handled separately.
@@ -196,21 +208,23 @@ function MoveButtonCell({ node, ctx }: { node: MoveTreeNode; ctx: RenderCtx }) {
   );
 }
 
-function renderMainline(tree: MoveTree, startNodeId: string, ctx: RenderCtx): React.ReactNode[] {
+function renderMainline(tree: MoveTree, rootId: string, ctx: RenderCtx): React.ReactNode[] {
   const elements: React.ReactNode[] = [];
-  let segmentStart: string | null = startNodeId;
+  let segmentStart: string | null = rootId;
 
   while (segmentStart) {
-    const { nodes, branchNodeId } = collectLineSegment(tree, segmentStart);
-    const rows = toPairRows(nodes);
+    const { nodes, branchNodeId, resumeFromId } = collectLineSegment(tree, segmentStart);
 
-    elements.push(
-      <div key={`main-seg-${nodes[0].id}`}>
-        {rows.map((row) => (
-          <MainlinePairRow key={row.key} row={row} ctx={ctx} />
-        ))}
-      </div>,
-    );
+    if (nodes.length > 0) {
+      const rows = toPairRows(nodes);
+      elements.push(
+        <div key={`main-seg-${nodes[0].id}`}>
+          {rows.map((row) => (
+            <MainlinePairRow key={row.key} row={row} ctx={ctx} />
+          ))}
+        </div>,
+      );
+    }
 
     if (branchNodeId) {
       const branchNode = tree.nodes[branchNodeId];
@@ -223,7 +237,7 @@ function renderMainline(tree: MoveTree, startNodeId: string, ctx: RenderCtx): Re
         );
       }
 
-      segmentStart = branchNode.children[0];
+      segmentStart = resumeFromId;
     } else {
       segmentStart = null;
     }
@@ -244,7 +258,7 @@ function renderVariationFlow(
   let isFirstSegment = true;
 
   while (segmentStart) {
-    const { nodes, branchNodeId } = collectLineSegment(tree, segmentStart);
+    const { nodes, branchNodeId, resumeFromId } = collectLineSegment(tree, segmentStart);
 
     elements.push(
       <div
@@ -278,7 +292,7 @@ function renderVariationFlow(
         );
       }
 
-      segmentStart = branchNode.children[0];
+      segmentStart = resumeFromId;
     } else {
       segmentStart = null;
     }
@@ -317,7 +331,7 @@ export default function PGNViewer({ tree, currentNodeId, onSelectNode }: PGNView
 
   const content = useMemo(() => {
     if (!rootNode || rootNode.children.length === 0) return [];
-    return renderMainline(tree, rootNode.children[0], {
+    return renderMainline(tree, tree.rootId, {
       currentNodeId,
       activeLineIds,
       onSelect: onSelectNode,
