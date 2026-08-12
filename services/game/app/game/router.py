@@ -1,17 +1,17 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from redis.asyncio import Redis
 from pydantic import TypeAdapter, ValidationError
-
-from app.domain.enums import GameStatus
 
 from ..auth.dependencies import get_current_player_ws
 from ..auth.models import PlayerIdentity
 from ..dependencies import (
-    get_clock_watchdog_manager,
     get_connection_manager,
     get_game_session_service,
+    get_redis,
 )
+from ..domain.enums import GameStatus
 from ..domain.exceptions import (
     ConcurrentMoveConflictError,
     GameAlreadyFinishedError,
@@ -40,10 +40,9 @@ from ..schemas.ws_out import (
     OutboundWebSocketMessage,
     PongMessage,
 )
-from .clock_watchdog import ClockWatchdogManager
 from .connection_manager import ConnectionManager
+from .pubsub import publish_game_event
 from .service import GameSessionService
-from .websocket import send_message
 
 
 router = APIRouter(
@@ -61,11 +60,9 @@ async def game_websocket(
     game_id: UUID,
     player: PlayerIdentity = Depends(get_current_player_ws),
     manager: ConnectionManager = Depends(get_connection_manager),
+    redis: Redis = Depends(get_redis),
     session_service: GameSessionService = Depends(
         get_game_session_service,
-    ),
-    watchdog: ClockWatchdogManager = Depends(
-        get_clock_watchdog_manager,
     ),
 ) -> None:
     try:
@@ -86,26 +83,19 @@ async def game_websocket(
             await websocket.close(code=1008)
             return
 
-        await manager.connect(
+        await manager.accept(
+            websocket=websocket,
+        )
+
+        manager.register(
             game_id=game_id,
             websocket=websocket,
         )
 
-        await send_message(
-            websocket,
-            GameStateMessage(
-                state=snapshot,
-            ),
+        await manager.send_local(
+            websocket=websocket,
+            message=GameStateMessage(state=snapshot),
         )
-
-        if snapshot.status == GameStatus.ACTIVE and snapshot.initial_time_ms > 0:
-            watchdog.schedule(
-                game_id=game_id,
-                version=snapshot.version,
-                delay_ms=session_service.chess_service.remaining_time_for_turn(
-                    snapshot=snapshot,
-                ),
-            )
 
         while True:
             try:
@@ -116,9 +106,9 @@ async def game_websocket(
                 )
 
                 if isinstance(message, PingMessage):
-                    await send_message(
-                        websocket,
-                        PongMessage(),
+                    await manager.send_local(
+                        websocket=websocket,
+                        message=PongMessage(),
                     )
                     continue
 
@@ -129,27 +119,19 @@ async def game_websocket(
                         uci_move=message.uci,
                     )
 
-                    if updated_snapshot.status == GameStatus.FINISHED:
-                        watchdog.cancel(game_id=game_id)
+                    if updated_snapshot.status != GameStatus.ACTIVE:
                         outbound: OutboundWebSocketMessage = (
                             GameOverMessage(
                                 state=updated_snapshot,
                             )
                         )
                     else:
-                        if updated_snapshot.initial_time_ms > 0:
-                            watchdog.schedule(
-                                game_id=game_id,
-                                version=updated_snapshot.version,
-                                delay_ms=session_service.chess_service.remaining_time_for_turn(
-                                    snapshot=updated_snapshot,
-                                ),
-                            )
                         outbound = MoveAcceptedMessage(
                             state=updated_snapshot,
                         )
 
-                    await manager.broadcast(
+                    await publish_game_event(
+                        redis=redis,
                         game_id=game_id,
                         message=outbound,
                     )
@@ -160,16 +142,8 @@ async def game_websocket(
                         player_id=player.user_id,
                     )
 
-                    if updated_snapshot.initial_time_ms > 0:
-                        watchdog.schedule(
-                            game_id=game_id,
-                            version=updated_snapshot.version,
-                            delay_ms=session_service.chess_service.remaining_time_for_turn(
-                                snapshot=updated_snapshot,
-                            ),
-                        )
-
-                    await manager.broadcast(
+                    await publish_game_event(
+                        redis=redis,
                         game_id=game_id,
                         message=DrawOfferedMessage(),
                     )
@@ -180,16 +154,8 @@ async def game_websocket(
                         player_id=player.user_id,
                     )
 
-                    if updated_snapshot.initial_time_ms > 0:
-                        watchdog.schedule(
-                            game_id=game_id,
-                            version=updated_snapshot.version,
-                            delay_ms=session_service.chess_service.remaining_time_for_turn(
-                                snapshot=updated_snapshot,
-                            ),
-                        )
-
-                    await manager.broadcast(
+                    await publish_game_event(
+                        redis=redis,
                         game_id=game_id,
                         message=DrawDeclinedMessage(reason="declined_by_opponent"),
                     )
@@ -200,9 +166,8 @@ async def game_websocket(
                         player_id=player.user_id,
                     )
 
-                    watchdog.cancel(game_id=game_id)
-
-                    await manager.broadcast(
+                    await publish_game_event(
+                        redis=redis,
                         game_id=game_id,
                         message=GameOverMessage(
                             state=updated_snapshot,
@@ -215,9 +180,8 @@ async def game_websocket(
                         player_id=player.user_id,
                     )
 
-                    watchdog.cancel(game_id=game_id)
-
-                    await manager.broadcast(
+                    await publish_game_event(
+                        redis=redis,
                         game_id=game_id,
                         message=GameOverMessage(
                             state=updated_snapshot,
@@ -232,17 +196,17 @@ async def game_websocket(
                 InvalidDrawStateError,
                 PlayerNotInGameError,
             ) as exc:
-                await send_message(
-                    websocket,
-                    ErrorMessage(
+                await manager.send_local(
+                    websocket=websocket,
+                    message=ErrorMessage(
                         code=str(exc),
                     ),
                 )
 
             except ValidationError:
-                await send_message(
-                    websocket,
-                    ErrorMessage(
+                await manager.send_local(
+                    websocket=websocket,
+                    message=ErrorMessage(
                         code="invalid_message",
                     ),
                 )

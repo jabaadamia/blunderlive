@@ -9,8 +9,8 @@ from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 
 from ..schemas.ws_out import RatingUpdateConfirmedMessage
-from .connection_manager import ConnectionManager
 from .events import parse_processed_game_event
+from .pubsub import publish_game_event
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 async def processed_game_worker(
     *,
     redis: Redis,
-    manager: ConnectionManager,
     stream: str,
     group: str,
     consumer: str | None = None,
@@ -30,7 +29,6 @@ async def processed_game_worker(
         try:
             await _process_pending(
                 redis=redis,
-                manager=manager,
                 stream=stream,
                 group=group,
                 consumer=consumer_name,
@@ -47,7 +45,6 @@ async def processed_game_worker(
                 for entry_id, fields in messages:
                     await _broadcast_processed_event(
                         redis=redis,
-                        manager=manager,
                         stream=stream,
                         group=group,
                         entry_id=entry_id,
@@ -70,7 +67,6 @@ async def _ensure_group(*, redis: Redis, stream: str, group: str) -> None:
 async def _process_pending(
     *,
     redis: Redis,
-    manager: ConnectionManager,
     stream: str,
     group: str,
     consumer: str,
@@ -88,7 +84,6 @@ async def _process_pending(
     for entry_id, fields in messages:
         await _broadcast_processed_event(
             redis=redis,
-            manager=manager,
             stream=stream,
             group=group,
             entry_id=entry_id,
@@ -99,15 +94,16 @@ async def _process_pending(
 async def _broadcast_processed_event(
     *,
     redis: Redis,
-    manager: ConnectionManager,
     stream: str,
     group: str,
     entry_id: str,
     fields: dict[str, str],
 ) -> None:
     event = parse_processed_game_event(fields)
-    await manager.broadcast(
-        game_id=UUID(event["game_id"]),
+    game_id = UUID(event["game_id"])
+    await publish_game_event(
+        redis=redis,
+        game_id=game_id,
         message=RatingUpdateConfirmedMessage(**event),
     )
     await redis.xack(stream, group, entry_id)

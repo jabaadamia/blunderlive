@@ -7,7 +7,6 @@ from app.chess.service import ChessGameService
 from app.domain.enums import GameResult, GameStatus, PlayerColor, TerminationType
 from app.domain.models import GameParticipant, GameSnapshot
 from app.game.events import build_finished_game_event, parse_processed_game_event
-from app.game.finished_worker import publish_pending_finished_games
 from app.game.processed_worker import (
     _broadcast_processed_event,
     _claimed_messages,
@@ -68,6 +67,7 @@ class FakeRedis:
     def __init__(self) -> None:
         self.added: list[tuple[str, dict]] = []
         self.acked: list[tuple[str, str, str]] = []
+        self.published: list[tuple[str, str]] = []
         self.claimed = []
 
     async def xadd(self, stream: str, fields: dict, **kwargs) -> str:
@@ -76,6 +76,10 @@ class FakeRedis:
 
     async def xack(self, stream: str, group: str, entry_id: str) -> int:
         self.acked.append((stream, group, entry_id))
+        return 1
+
+    async def publish(self, channel: str, payload: str) -> int:
+        self.published.append((channel, payload))
         return 1
 
     async def xautoclaim(
@@ -89,37 +93,6 @@ class FakeRedis:
         count: int,
     ):
         return self.claimed
-
-
-class FakeRepository:
-    def __init__(self, snapshots: list[GameSnapshot]) -> None:
-        self.snapshots = snapshots
-        self.cleared: list[UUID] = []
-
-    async def fetch_pending_finished_games(self):
-        return self.snapshots
-
-    async def clear_pending_finished_game(self, *, game_id: UUID) -> None:
-        self.cleared.append(game_id)
-
-
-@pytest.mark.asyncio
-async def test_finished_game_publisher_publishes_pending_snapshots() -> None:
-    snapshot = finished_snapshot()
-    repository = FakeRepository([snapshot])
-    redis = FakeRedis()
-
-    published_count = await publish_pending_finished_games(
-        repository=repository,  # type: ignore[arg-type]
-        redis=redis,  # type: ignore[arg-type]
-        chess_service=ChessGameService(),
-        stream="games.finished",
-    )
-
-    assert published_count == 1
-    assert redis.added[0][0] == "games.finished"
-    assert redis.added[0][1]["game_id"] == str(snapshot.game_id)
-    assert repository.cleared == [snapshot.game_id]
 
 
 def test_parse_processed_game_event_extracts_rating_changes() -> None:
@@ -147,22 +120,12 @@ def test_parse_processed_game_event_extracts_rating_changes() -> None:
     assert event["black_rating_change"]["delta"] == -16
 
 
-class FakeConnectionManager:
-    def __init__(self) -> None:
-        self.broadcasts: list[tuple[UUID, object]] = []
-
-    async def broadcast(self, *, game_id: UUID, message) -> None:
-        self.broadcasts.append((game_id, message))
-
-
 @pytest.mark.asyncio
-async def test_broadcast_processed_event_sends_rating_update_and_acknowledges() -> None:
+async def test_broadcast_processed_event_publishes_rating_update_and_acknowledges() -> None:
     redis = FakeRedis()
-    manager = FakeConnectionManager()
 
     await _broadcast_processed_event(
         redis=redis,  # type: ignore[arg-type]
-        manager=manager,  # type: ignore[arg-type]
         stream="games.processed",
         group="game-rating-updates",
         entry_id="1-0",
@@ -181,9 +144,9 @@ async def test_broadcast_processed_event_sends_rating_update_and_acknowledges() 
         },
     )
 
-    assert manager.broadcasts[0][0] == UUID("aaaaaaaa-1111-1111-1111-111111111111")
-    assert manager.broadcasts[0][1].type == "rating_update_confirmed"
-    assert manager.broadcasts[0][1].white_rating_change.delta == 16
+    assert redis.published[0][0] == "game:events:aaaaaaaa-1111-1111-1111-111111111111"
+    assert '"type":"rating_update_confirmed"' in redis.published[0][1]
+    assert '"delta":16' in redis.published[0][1]
     assert redis.acked == [("games.processed", "game-rating-updates", "1-0")]
 
 
@@ -208,7 +171,6 @@ def test_claimed_messages_accepts_plain_message_list_shape() -> None:
 @pytest.mark.asyncio
 async def test_process_pending_handles_redis_cursor_list_shape() -> None:
     redis = FakeRedis()
-    manager = FakeConnectionManager()
     redis.claimed = [
         "0-0",
         [
@@ -234,11 +196,10 @@ async def test_process_pending_handles_redis_cursor_list_shape() -> None:
 
     await _process_pending(
         redis=redis,  # type: ignore[arg-type]
-        manager=manager,  # type: ignore[arg-type]
         stream="games.processed",
         group="game-rating-updates",
         consumer="game-worker-1",
     )
 
-    assert manager.broadcasts[0][1].type == "rating_update_confirmed"
+    assert '"type":"rating_update_confirmed"' in redis.published[0][1]
     assert redis.acked == [("games.processed", "game-rating-updates", "1-0")]

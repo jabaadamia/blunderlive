@@ -134,6 +134,9 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
               const incoming = msg.state;
               const receivedAt = Date.now();
               setConfirmedSnapshot((prev) => {
+                if (prev && incoming.version < prev.version) {
+                  return prev;
+                }
                 if (
                   prev &&
                   prev.fen === incoming.fen &&

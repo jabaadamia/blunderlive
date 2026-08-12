@@ -7,7 +7,7 @@ from app.domain.enums import GameStatus, PlayerColor, PlayerColor
 from app.domain.models import GameParticipant, GameSnapshot
 from app.game.connection_manager import ConnectionManager
 
-from app.schemas.ws_out import GameStateMessage
+from app.schemas.ws_out import GameStateMessage, PongMessage
 
 
 class FakeWebSocket:
@@ -23,14 +23,16 @@ class FakeWebSocket:
 
 
 @pytest.mark.asyncio
-async def test_connection_manager_connects_broadcasts_and_disconnects() -> None:
+async def test_connection_manager_connects_broadcasts_locally_and_disconnects() -> None:
     manager = ConnectionManager()
     game_id = UUID("aaaaaaaa-1111-1111-1111-111111111111")
     ws_one = FakeWebSocket()
     ws_two = FakeWebSocket()
 
-    await manager.connect(game_id=game_id, websocket=ws_one) # type: ignore[arg-type]
-    await manager.connect(game_id=game_id, websocket=ws_two) # type: ignore[arg-type]
+    await manager.accept(websocket=ws_one) # type: ignore[arg-type]
+    await manager.accept(websocket=ws_two) # type: ignore[arg-type]
+    manager.register(game_id=game_id, websocket=ws_one) # type: ignore[arg-type]
+    manager.register(game_id=game_id, websocket=ws_two) # type: ignore[arg-type]
 
     snapshot = GameSnapshot(
         game_id=game_id,
@@ -49,7 +51,7 @@ async def test_connection_manager_connects_broadcasts_and_disconnects() -> None:
         ),
     )
     
-    await manager.broadcast(
+    await manager.broadcast_local(
         game_id=game_id,
         message=GameStateMessage(
             state=snapshot,
@@ -68,3 +70,16 @@ async def test_connection_manager_connects_broadcasts_and_disconnects() -> None:
     assert ws_one.messages == [expected]
     assert ws_two.messages == [expected]
     assert manager.connection_count(game_id=game_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_send_local_accepts_unregistered_socket() -> None:
+    manager = ConnectionManager()
+    websocket = FakeWebSocket()
+
+    await manager.send_local(
+        websocket=websocket,  # type: ignore[arg-type]
+        message=PongMessage(),
+    )
+
+    assert websocket.messages == [{"type": "pong"}]
