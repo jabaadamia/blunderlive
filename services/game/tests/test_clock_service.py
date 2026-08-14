@@ -1,6 +1,5 @@
-import asyncio
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,9 +7,8 @@ import pytest
 from app.chess.service import ChessGameService
 from app.domain.enums import GameResult, GameStatus, TerminationType
 from app.domain.models import GameParticipant, GameSnapshot, PlayerColor
-from app.game.clock_watchdog import ClockWatchdogManager
+from app.game.deadlines import sweep_deadlines
 from app.game.service import GameSessionService
-from app.schemas.ws_out import GameOverMessage
 
 
 def build_test_snapshot(
@@ -199,41 +197,76 @@ async def test_game_session_service_check_timeout() -> None:
     repository.save_game_snapshot.assert_called_once()
 
 
+class FakeDeadlineRepository:
+    def __init__(self, snapshot: GameSnapshot) -> None:
+        self.snapshot = snapshot
+        self.removed: list[tuple[UUID, int]] = []
+
+    async def fetch_due_deadlines(self, *, now_ms: int):
+        return [(self.snapshot.game_id, 1234)]
+
+    async def fetch_game_snapshot(self, *, game_id: UUID) -> GameSnapshot:
+        return self.snapshot
+
+    async def remove_deadline_if_score(self, *, game_id: UUID, deadline_ms: int) -> bool:
+        self.removed.append((game_id, deadline_ms))
+        return True
+
+
+class FakeRedis:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, str]] = []
+
+    async def publish(self, channel: str, payload: str) -> int:
+        self.published.append((channel, payload))
+        return 1
+
+
 @pytest.mark.asyncio
-async def test_clock_watchdog_manager_schedule_and_timeout() -> None:
+async def test_sweep_deadlines_applies_timeout_and_publishes_game_over() -> None:
+    snapshot = build_test_snapshot(version=3)
+    repository = FakeDeadlineRepository(snapshot)
     session_service = AsyncMock()
-    manager = AsyncMock()
-    watchdog = ClockWatchdogManager(session_service, manager)
-
-    game_id = uuid4()
-    finished_snapshot = build_test_snapshot(status=GameStatus.FINISHED)
-    session_service.check_timeout.return_value = finished_snapshot
-
-    watchdog.schedule(game_id=game_id, version=1, delay_ms=10)
-    await asyncio.sleep(0.05)
-
-    session_service.check_timeout.assert_called_once_with(
-        game_id=game_id,
-        expected_version=1,
+    timed_out = snapshot.model_copy(
+        update={
+            "status": GameStatus.FINISHED,
+            "result": GameResult.BLACK_WIN,
+            "termination": TerminationType.TIMEOUT,
+            "version": 4,
+        }
     )
-    manager.broadcast.assert_called_once()
-    broadcast_args = manager.broadcast.call_args.kwargs
-    assert broadcast_args["game_id"] == game_id
-    assert isinstance(broadcast_args["message"], GameOverMessage)
+    session_service.check_timeout.return_value = timed_out
+    redis = FakeRedis()
+
+    count = await sweep_deadlines(
+        redis=redis,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        session_service=session_service,
+    )
+
+    assert count == 1
+    session_service.check_timeout.assert_called_once_with(
+        game_id=snapshot.game_id,
+        expected_version=3,
+    )
+    assert redis.published[0][0] == f"game:events:{snapshot.game_id}"
+    assert '"type":"game_over"' in redis.published[0][1]
 
 
 @pytest.mark.asyncio
-async def test_clock_watchdog_manager_cancel() -> None:
+async def test_sweep_deadlines_removes_stale_unexpired_deadline_conditionally() -> None:
+    snapshot = build_test_snapshot(version=3)
+    repository = FakeDeadlineRepository(snapshot)
     session_service = AsyncMock()
-    manager = AsyncMock()
-    watchdog = ClockWatchdogManager(session_service, manager)
+    session_service.check_timeout.return_value = None
+    redis = FakeRedis()
 
-    game_id = uuid4()
-    watchdog.schedule(game_id=game_id, version=1, delay_ms=500)
-    assert game_id in watchdog._tasks
+    count = await sweep_deadlines(
+        redis=redis,  # type: ignore[arg-type]
+        repository=repository,  # type: ignore[arg-type]
+        session_service=session_service,
+    )
 
-    watchdog.cancel(game_id=game_id)
-    assert game_id not in watchdog._tasks
-    await asyncio.sleep(0.05)
-
-    session_service.check_timeout.assert_not_called()
+    assert count == 0
+    assert repository.removed == [(snapshot.game_id, 1234)]
+    assert redis.published == []

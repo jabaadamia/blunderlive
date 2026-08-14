@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from redis.asyncio import Redis
 
-from app.domain.enums import GameStatus, PlayerColor
+from app.domain.enums import GameResult, GameStatus, PlayerColor, TerminationType
 from app.domain.models import GameParticipant, GameSnapshot
 from app.matchmaking.repository import (
     DuplicateQueueEntryError,
@@ -217,7 +217,7 @@ async def test_try_create_match_assigns_active_games_and_removes_queue_entries()
     assert stored_snapshot.black.user_id == user_two
 
 @pytest.mark.asyncio
-async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
+async def test_save_game_snapshot_clears_active_games_and_publishes_when_finished() -> None:
     redis = Redis.from_url(
         os.environ["REDIS_URL"],
         encoding="utf-8",
@@ -260,6 +260,8 @@ async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
             "fen": "finished-fen",
             "moves": ["e2e4", "e7e5"],
             "move_count": 2,
+            "result": GameResult.DRAW,
+            "termination": TerminationType.DRAW_AGREEMENT,
             "version": 1,
         },
     )
@@ -277,6 +279,21 @@ async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
     await repository.save_game_snapshot(
         expected_version=initial_snapshot.version,
         snapshot=finished_snapshot,
+        finished_game_event={
+            "game_id": str(initial_snapshot.game_id),
+            "white_player_id": str(user_one),
+            "black_player_id": str(user_two),
+            "result": "1/2-1/2",
+            "termination": "draw_agreement",
+            "rated": "true",
+            "initial_time_ms": "0",
+            "increment_ms": "0",
+            "started_at": initial_snapshot.created_at.isoformat(),
+            "ended_at": initial_snapshot.created_at.isoformat(),
+            "move_count": "2",
+            "fen_final": "finished-fen",
+            "pgn": "*",
+        },
     )
 
     player_one_active = await redis.get(
@@ -290,7 +307,7 @@ async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
     stored_snapshot = await repository.fetch_game_snapshot(
         game_id=initial_snapshot.game_id,
     )
-    pending_finished_games = await repository.fetch_pending_finished_games()
+    finished_stream = await redis.xrange("games.finished")
 
     snapshot_ttl = await redis.ttl(f"game:snapshot:{initial_snapshot.game_id}")
     await redis.aclose()
@@ -299,9 +316,7 @@ async def test_save_game_snapshot_clears_active_games_when_finished() -> None:
     assert player_two_active is None
     assert stored_snapshot.status == GameStatus.FINISHED
     assert 0 < snapshot_ttl <= 1800
-    assert [snapshot.game_id for snapshot in pending_finished_games] == [
-        initial_snapshot.game_id,
-    ]
+    assert finished_stream[0][1]["game_id"] == str(initial_snapshot.game_id)
 
 @pytest.mark.asyncio
 async def test_save_game_snapshot_rejects_stale_version() -> None:

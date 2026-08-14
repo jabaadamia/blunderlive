@@ -13,6 +13,7 @@ from ..domain.exceptions import (
     PlayerNotInGameError,
 )
 from ..domain.models import GameSnapshot
+from .events import build_finished_game_event
 from ..matchmaking.repository import MatchmakingRepository
 
 
@@ -58,6 +59,7 @@ class GameSessionService:
         saved = await self.repository.save_game_snapshot(
             expected_version=snapshot.version,
             snapshot=updated_snapshot,
+            finished_game_event=self._finished_game_event(updated_snapshot),
         )
         if not saved:
             return None
@@ -100,6 +102,7 @@ class GameSessionService:
         saved = await self.repository.save_game_snapshot(
             expected_version=snapshot.version,
             snapshot=updated_snapshot,
+            finished_game_event=self._finished_game_event(updated_snapshot),
         )
 
         if not saved:
@@ -136,6 +139,7 @@ class GameSessionService:
         saved = await self.repository.save_game_snapshot(
             expected_version=snapshot.version,
             snapshot=updated_snapshot,
+            finished_game_event=self._finished_game_event(updated_snapshot),
         )
 
         if not saved:
@@ -175,6 +179,7 @@ class GameSessionService:
         saved = await self.repository.save_game_snapshot(
             expected_version=snapshot.version,
             snapshot=updated_snapshot,
+            finished_game_event=self._finished_game_event(updated_snapshot),
         )
 
         if not saved:
@@ -211,6 +216,7 @@ class GameSessionService:
         saved = await self.repository.save_game_snapshot(
             expected_version=snapshot.version,
             snapshot=updated_snapshot,
+            finished_game_event=self._finished_game_event(updated_snapshot),
         )
 
         if not saved:
@@ -251,9 +257,19 @@ class GameSessionService:
         saved = await self.repository.save_game_snapshot(
             expected_version=snapshot.version,
             snapshot=updated_snapshot,
+            finished_game_event=self._finished_game_event(updated_snapshot),
         )
 
         if not saved:
             raise ConcurrentMoveConflictError("concurrent_state_conflict")
 
         return updated_snapshot
+
+    def _finished_game_event(self, snapshot: GameSnapshot) -> dict[str, str] | None:
+        if snapshot.status != GameStatus.FINISHED:
+            return None
+
+        return build_finished_game_event(
+            snapshot=snapshot,
+            chess_service=self.chess_service,
+        )

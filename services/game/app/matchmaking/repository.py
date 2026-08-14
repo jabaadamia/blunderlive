@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
+import chess
 from redis.asyncio import Redis
 
 from ..domain.enums import GameStatus
@@ -11,6 +12,7 @@ from ..domain.exceptions import GameNotFoundError
 from ..domain.models import GameSnapshot
 
 FINISHED_GAME_SNAPSHOT_TTL_SECONDS = 1800
+GAME_DEADLINES_KEY = "game:deadlines"
 
 
 def build_time_control_bucket(rated: bool, initial_time_ms: int, increment_ms: int) -> str:
@@ -51,8 +53,14 @@ class QueueStatus:
 
 
 class MatchmakingRepository:
-    def __init__(self, redis: Redis) -> None:
+    def __init__(
+        self,
+        redis: Redis,
+        *,
+        games_finished_stream: str = "games.finished",
+    ) -> None:
         self.redis = redis
+        self.games_finished_stream = games_finished_stream
 
     @staticmethod
     def _entry_key(user_id: UUID) -> str:
@@ -71,10 +79,6 @@ class MatchmakingRepository:
         return f"game:snapshot:{game_id}"
 
     @staticmethod
-    def _finished_game_pending_key(game_id: UUID) -> str:
-        return f"game:finished_pending:{game_id}"
-    
-    @staticmethod
     def _match_found_key(user_id: UUID) -> str:
         return f"matchmaking:match_found:{user_id}"
 
@@ -82,10 +86,6 @@ class MatchmakingRepository:
     def _bucket_scan_pattern() -> str:
         return "matchmaking:queue:*"
 
-    @staticmethod
-    def _finished_game_pending_pattern() -> str:
-        return "game:finished_pending:*"
-    
     async def enqueue_player(
         self,
         *,
@@ -228,6 +228,7 @@ class MatchmakingRepository:
                     pipe.set(player_one_active_key, str(snapshot.game_id))
                     pipe.set(player_two_active_key, str(snapshot.game_id))
                     pipe.set(snapshot_key, snapshot.model_dump_json())
+                    self._write_deadline(pipe, snapshot)
 
                     await pipe.execute()
                     return True
@@ -244,10 +245,13 @@ class MatchmakingRepository:
         *,
         snapshot: GameSnapshot,
     ) -> None:
-        await self.redis.set(
-            self._game_snapshot_key(snapshot.game_id),
-            snapshot.model_dump_json(),
-        )
+        async with self.redis.pipeline(transaction=True) as pipe:
+            pipe.set(
+                self._game_snapshot_key(snapshot.game_id),
+                snapshot.model_dump_json(),
+            )
+            self._write_deadline(pipe, snapshot)
+            await pipe.execute()
 
     async def fetch_game_snapshot(self, *, game_id: UUID) -> GameSnapshot:
         payload = await self.redis.get(self._game_snapshot_key(game_id))
@@ -261,6 +265,7 @@ class MatchmakingRepository:
         *,
         expected_version: int,
         snapshot: GameSnapshot,
+        finished_game_event: dict[str, str] | None = None,
     ) -> bool:
         snapshot_key = self._game_snapshot_key(snapshot.game_id)
 
@@ -288,6 +293,7 @@ class MatchmakingRepository:
                         snapshot_key,
                         snapshot.model_dump_json(),
                     )
+                    self._write_deadline(pipe, snapshot)
 
                     if snapshot.status != GameStatus.ACTIVE:
                         pipe.delete(
@@ -302,11 +308,12 @@ class MatchmakingRepository:
                         )
 
                     if snapshot.status == GameStatus.FINISHED:
-                        pipe.set(
-                            self._finished_game_pending_key(snapshot.game_id),
-                            snapshot.model_dump_json(),
-                        )
-
+                        if finished_game_event is not None:
+                            pipe.xadd(
+                                self.games_finished_stream,
+                                finished_game_event,
+                                maxlen=10000,
+                            )
                     await pipe.execute()
                     return True
 
@@ -347,18 +354,66 @@ class MatchmakingRepository:
             active_game_id=active_game_id,
         )
 
-    async def fetch_pending_finished_games(self, *, limit: int = 20) -> list[GameSnapshot]:
-        snapshots: list[GameSnapshot] = []
+    async def fetch_due_deadlines(self, *, now_ms: int) -> list[tuple[UUID, int]]:
+        entries = await self.redis.zrangebyscore(
+            GAME_DEADLINES_KEY,
+            0,
+            now_ms,
+            withscores=True,
+        )
+        return [
+            (UUID(str(game_id)), int(deadline_ms))
+            for game_id, deadline_ms in entries
+        ]
 
-        async for key in self.redis.scan_iter(match=self._finished_game_pending_pattern()):
-            payload = await self.redis.get(key)
-            if payload:
-                snapshots.append(GameSnapshot.model_validate_json(payload))
+    async def remove_deadline_if_score(
+        self,
+        *,
+        game_id: UUID,
+        deadline_ms: int,
+    ) -> bool:
+        while True:
+            try:
+                async with self.redis.pipeline(transaction=True) as pipe:
+                    await pipe.watch(GAME_DEADLINES_KEY)
+                    current_score = await pipe.zscore(GAME_DEADLINES_KEY, str(game_id))
 
-            if len(snapshots) >= limit:
-                break
+                    if current_score is None or int(current_score) != deadline_ms:
+                        await pipe.unwatch()
+                        return False
 
-        return snapshots
+                    pipe.multi()
+                    pipe.zrem(GAME_DEADLINES_KEY, str(game_id))
+                    await pipe.execute()
+                    return True
 
-    async def clear_pending_finished_game(self, *, game_id: UUID) -> None:
-        await self.redis.delete(self._finished_game_pending_key(game_id))
+            except Exception as exc:
+                from redis.exceptions import WatchError
+
+                if isinstance(exc, WatchError):
+                    continue
+                raise
+
+    @classmethod
+    def _deadline_ms_for_snapshot(cls, snapshot: GameSnapshot) -> int | None:
+        if (
+            snapshot.status != GameStatus.ACTIVE
+            or snapshot.initial_time_ms == 0
+            or snapshot.turn_started_at is None
+        ):
+            return None
+
+        is_white_turn = chess.Board(snapshot.fen).turn == chess.WHITE
+        remaining_ms = (
+            snapshot.white_time_left_ms if is_white_turn else snapshot.black_time_left_ms
+        )
+        return int(snapshot.turn_started_at.timestamp() * 1000) + remaining_ms
+
+    @classmethod
+    def _write_deadline(cls, pipe, snapshot: GameSnapshot) -> None:
+        deadline_ms = cls._deadline_ms_for_snapshot(snapshot)
+        if deadline_ms is None:
+            pipe.zrem(GAME_DEADLINES_KEY, str(snapshot.game_id))
+            return
+
+        pipe.zadd(GAME_DEADLINES_KEY, {str(snapshot.game_id): deadline_ms})

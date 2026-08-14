@@ -4,7 +4,6 @@ from starlette.requests import HTTPConnection
 
 from .chess.service import ChessGameService
 from .core.client import HttpPlayerProfileClient, ResilientPlayerProfileClient
-from .game.clock_watchdog import ClockWatchdogManager
 from .game.connection_manager import ConnectionManager
 from .config import Settings, get_settings
 from .game.service import GameSessionService
@@ -21,8 +20,15 @@ def get_settings_dependency() -> Settings:
 
 
 def get_matchmaking_repository(conn: HTTPConnection) -> MatchmakingRepository:
+    if hasattr(conn.app.state, "matchmaking_repository"):
+        return conn.app.state.matchmaking_repository
+
     redis = conn.app.state.redis
-    return MatchmakingRepository(redis)
+    settings = get_settings()
+    return MatchmakingRepository(
+        redis,
+        games_finished_stream=settings.games_finished_stream,
+    )
 
 def get_chess_service() -> ChessGameService:
     return ChessGameService()
@@ -47,16 +53,3 @@ def get_game_session_service(
 
 def get_connection_manager(conn: HTTPConnection) -> ConnectionManager:
     return conn.app.state.connection_manager
-
-
-def get_clock_watchdog_manager(conn: HTTPConnection) -> ClockWatchdogManager:
-    if not hasattr(conn.app.state, "clock_watchdog_manager"):
-        repository = get_matchmaking_repository(conn)
-        chess_service = get_chess_service()
-        session_service = GameSessionService(repository, chess_service)
-        manager = get_connection_manager(conn)
-        conn.app.state.clock_watchdog_manager = ClockWatchdogManager(
-            session_service=session_service,
-            manager=manager,
-        )
-    return conn.app.state.clock_watchdog_manager
