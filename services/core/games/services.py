@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from django.db import transaction
+from django.db.utils import IntegrityError
 from django.utils import timezone
 
 from games.models import Game
@@ -62,8 +63,11 @@ def process_finished_game(*, payload: FinishedGamePayload) -> ProcessFinishedGam
             fen_final=payload.fen_final,
             pgn=payload.pgn,
         )
-        game.save(force_insert=True)
-        created = True
+        try:
+            game.save(force_insert=True)
+            created = True
+        except IntegrityError:
+            game = Game.objects.select_for_update().get(pk=game.pk)
 
     if game.rating_applied_at is not None:
         return ProcessFinishedGameResult(game=game, rating_result=None, created=created)
