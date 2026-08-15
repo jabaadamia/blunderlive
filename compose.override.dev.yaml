@@ -59,6 +59,16 @@ services:
     volumes:
       - ./services/game:/app
 
+  game-worker:
+    build:
+      context: .
+      dockerfile: services/game/Dockerfile
+      target: dev
+    environment:
+      APP_ENV: development
+    volumes:
+      - ./services/game:/app
+
   frontend:
     build:
       context: .

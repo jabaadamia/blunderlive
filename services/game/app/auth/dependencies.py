@@ -24,6 +24,7 @@ def get_current_player_http(
     try:
         return verify_access_token(
             token=credentials.credentials,
+            public_key=settings.jwt_public_key,
             public_key_path=settings.jwt_public_key_path,
         )
     except TokenVerificationError as exc:
@@ -58,6 +59,7 @@ async def get_current_player_ws(
     try:
         return verify_access_token(
             token=token,
+            public_key=settings.jwt_public_key,
             public_key_path=settings.jwt_public_key_path,
         )
     except TokenVerificationError as exc:

@@ -15,7 +15,14 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         validation_alias="CORS_ALLOWED_ORIGINS",
     )
-    jwt_public_key_path: str = Field(validation_alias="GAME_JWT_PUBLIC_KEY_PATH")
+    jwt_public_key: str | None = Field(
+        default=None,
+        validation_alias="GAME_JWT_PUBLIC_KEY",
+    )
+    jwt_public_key_path: str | None = Field(
+        default=None,
+        validation_alias="GAME_JWT_PUBLIC_KEY_PATH",
+    )
     core_api_base_url: str = Field(
         default="http://core:8000",
         validation_alias="CORE_API_BASE_URL",

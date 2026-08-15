@@ -1,11 +1,11 @@
 from functools import lru_cache
-from pathlib import Path
 from uuid import UUID
 
 import jwt
 from jwt import InvalidTokenError
 from pydantic import ValidationError
 
+from .keys import load_key
 from .models import PlayerIdentity
 
 
@@ -14,15 +14,20 @@ class TokenVerificationError(Exception):
 
 
 @lru_cache
-def load_public_key(public_key_path: str) -> str:
-    return Path(public_key_path).read_text(encoding="utf-8")
+def load_public_key(public_key: str | None, public_key_path: str | None) -> str:
+    return load_key(content=public_key, path=public_key_path)
 
 
-def verify_access_token(token: str, public_key_path: str) -> PlayerIdentity:
+def verify_access_token(
+    token: str,
+    *,
+    public_key: str | None,
+    public_key_path: str | None,
+) -> PlayerIdentity:
     try:
         payload = jwt.decode(
             token,
-            load_public_key(public_key_path),
+            load_public_key(public_key, public_key_path),
             algorithms=["RS256"],
             options={"require": ["exp", "iat", "jti", "user_id", "token_type"]},
         )

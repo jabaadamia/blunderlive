@@ -4,6 +4,8 @@ from pathlib import Path
 
 import dj_database_url
 
+from config.keys import load_key
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -41,6 +43,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -70,8 +73,6 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 CORE_DATABASE_URL = os.environ["CORE_DATABASE_URL"]
-CORE_JWT_PRIVATE_KEY_PATH = os.environ["CORE_JWT_PRIVATE_KEY_PATH"]
-CORE_JWT_PUBLIC_KEY_PATH = os.environ["CORE_JWT_PUBLIC_KEY_PATH"]
 CORE_REDIS_URL = os.environ.get("REDIS_URL")
 CORE_GAMES_FINISHED_STREAM = os.environ.get("CORE_GAMES_FINISHED_STREAM", "games.finished")
 CORE_GAMES_PROCESSED_STREAM = os.environ.get("CORE_GAMES_PROCESSED_STREAM", "games.processed")
@@ -96,6 +97,11 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
@@ -122,8 +128,14 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "ALGORITHM": "RS256",
-    "SIGNING_KEY": Path(CORE_JWT_PRIVATE_KEY_PATH).read_text(encoding="utf-8"),
-    "VERIFYING_KEY": Path(CORE_JWT_PUBLIC_KEY_PATH).read_text(encoding="utf-8"),
+    "SIGNING_KEY": load_key(
+        content_env_var="CORE_JWT_PRIVATE_KEY",
+        path_env_var="CORE_JWT_PRIVATE_KEY_PATH",
+    ),
+    "VERIFYING_KEY": load_key(
+        content_env_var="CORE_JWT_PUBLIC_KEY",
+        path_env_var="CORE_JWT_PUBLIC_KEY_PATH",
+    ),
 }
 
 SPECTACULAR_SETTINGS = {

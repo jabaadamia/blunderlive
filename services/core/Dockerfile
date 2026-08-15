@@ -34,4 +34,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "gunicorn config.wsgi:application --bind ${APP_HOST}:${CORE_PORT}"]
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind ${APP_HOST}:${CORE_PORT}"]

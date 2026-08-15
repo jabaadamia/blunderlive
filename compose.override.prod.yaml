@@ -16,6 +16,14 @@ services:
     environment:
       APP_ENV: production
 
+  game-worker:
+    build:
+      context: .
+      dockerfile: services/game/Dockerfile
+      target: runtime
+    environment:
+      APP_ENV: production
+
   frontend:
     build:
       context: .
