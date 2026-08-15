@@ -6,11 +6,12 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
-from .views import health
+from .views import health_live, health_ready
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("health/", health, name="health"),
+    path("health/live", health_live, name="health-live"),
+    path("health/ready", health_ready, name="health-ready"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
