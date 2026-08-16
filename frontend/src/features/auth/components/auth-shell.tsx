@@ -2,7 +2,7 @@ import Link from "next/link";
 
 type AuthShellProps = {
   title: string;
-  description: string;
+  description?: string;
   footerText: string;
   footerLinkHref: string;
   footerLinkLabel: string;
@@ -27,9 +27,11 @@ export function AuthShell({
                 BlunderLive
               </p>
               <h1 className="mt-4 text-3xl font-semibold">{title}</h1>
-              <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-300">
-                {description}
-              </p>
+              {description ? (
+                <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-300">
+                  {description}
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="p-8">

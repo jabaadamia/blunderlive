@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 
 import { SiteNav } from "@/components/site-nav";
+import { useAuth } from "@/providers/auth-provider";
 import {
   joinMatchmaking,
   leaveMatchmaking,
@@ -57,6 +58,7 @@ const MAX_CUSTOM_INCREMENT_SECONDS = 60;
 
 export function MatchmakingLobby() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [lobbyState, setLobbyState] = useState<LobbyState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>(DEFAULT_PRESET_ID);
@@ -64,6 +66,7 @@ export function MatchmakingLobby() {
   const [customIncrementSeconds, setCustomIncrementSeconds] = useState("0");
   const [rated, setRated] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lobbyStateRef = useRef<LobbyState>("idle");
 
   const selectedTimeControl: TimeControl = useMemo(() => {
     if (selectedId === CUSTOM_ID) {
@@ -109,12 +112,24 @@ export function MatchmakingLobby() {
   }, [router, stopPolling]);
 
   useEffect(() => {
+    lobbyStateRef.current = lobbyState;
+  }, [lobbyState]);
+
+  useEffect(() => {
     return () => {
       stopPolling();
+      if (lobbyStateRef.current === "joining" || lobbyStateRef.current === "queued") {
+        leaveMatchmaking().catch(() => { });
+      }
     };
   }, [stopPolling]);
 
   async function handlePlay() {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/")}`);
+      return;
+    }
+
     setLobbyState("joining");
     setErrorMessage(null);
 

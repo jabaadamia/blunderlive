@@ -67,7 +67,7 @@ export function RatingsDashboard() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/matchmaking"
+              href="/"
               className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-700 px-5 text-sm font-semibold text-white transition hover:bg-neutral-800"
             >
               Play

@@ -7,7 +7,6 @@ export default function RegisterPage() {
     <AuthPageGuard>
       <AuthShell
         title="Create account"
-        description="This form registers the user through the core auth API and immediately stores the returned access token for authenticated requests."
         footerText="Already registered?"
         footerLinkHref="/login"
         footerLinkLabel="Sign in"
