@@ -45,7 +45,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2.5 outline-none transition focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-100"
+          className="w-full rounded-md border border-line-strong bg-transparent px-3 py-2.5 outline-none transition focus:border-primary"
         />
       </div>
       <div className="space-y-1.5">
@@ -59,7 +59,7 @@ export function LoginForm() {
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2.5 outline-none transition focus:border-neutral-900 dark:border-neutral-700 dark:focus:border-neutral-100"
+          className="w-full rounded-md border border-line-strong bg-transparent px-3 py-2.5 outline-none transition focus:border-primary"
         />
       </div>
       {error ? (
@@ -70,7 +70,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex w-full items-center justify-center rounded-md bg-neutral-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-neutral-300"
+        className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-text transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? "Signing in..." : "Sign in"}
       </button>

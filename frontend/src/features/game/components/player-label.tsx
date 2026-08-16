@@ -22,12 +22,12 @@ export function PlayerLabel({ player, showRating = true }: PlayerLabelProps) {
     <div className="flex items-center gap-2 font-medium">
       <Link
         href={`/profile/${player.userId}`}
-        className="text-neutral-900 hover:underline dark:text-neutral-100"
+        className="text-ink hover:underline"
       >
         {player.username ?? "Unknown player"}
       </Link>
       {showRating && player.rating !== null && (
-        <span className="text-sm text-neutral-500 dark:text-neutral-400">
+        <span className="text-sm text-ink-muted">
           {player.rating}
         </span>
       )}

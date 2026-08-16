@@ -24,7 +24,7 @@ function DrawResignButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-9 w-9 items-center justify-center text-neutral-600 transition hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-35 dark:text-neutral-300 dark:hover:text-neutral-100"
+      className="flex h-9 w-9 items-center justify-center text-ink-secondary transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
     >
       <Icon className="h-5 w-5" aria-hidden="true" />
     </button>
@@ -65,7 +65,7 @@ export default function DrawResignBar({
           type="button"
           onClick={onDrawAccept}
           disabled={actionPending}
-          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-neutral-300"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-text transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           Accept draw
         </button>
@@ -73,7 +73,7 @@ export default function DrawResignBar({
           type="button"
           onClick={onDrawDecline}
           disabled={actionPending}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition hover:border-neutral-400 hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-ink-secondary transition hover:border-ink-faint hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-50 dark:text-ink"
         >
           Decline
         </button>
@@ -91,12 +91,12 @@ export default function DrawResignBar({
           onClick={() => setConfirmAction((value) => (value === 'draw' ? null : 'draw'))}
         />
         {hasOutgoingDrawOffer ? (
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+          <span className="text-xs font-medium uppercase tracking-[0.16em] text-ink-muted">
             Draw offered
           </span>
         ) : null}
         {visibleConfirmAction === 'draw' ? (
-          <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+          <div className="flex items-center gap-2 text-sm text-ink-secondary">
             <span>Offer draw?</span>
             <button
               type="button"
@@ -105,7 +105,7 @@ export default function DrawResignBar({
                 onDrawOffer?.();
               }}
               disabled={actionPending}
-              className="rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-neutral-300"
+              className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-text transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               Yes
             </button>
@@ -113,7 +113,7 @@ export default function DrawResignBar({
               type="button"
               onClick={() => setConfirmAction(null)}
               disabled={actionPending}
-              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:border-neutral-400 hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
+              className="rounded-md border border-line-strong px-2.5 py-1 text-xs font-medium text-ink-secondary transition hover:border-ink-faint hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-50 dark:text-ink"
             >
               No
             </button>
@@ -128,7 +128,7 @@ export default function DrawResignBar({
           onClick={() => setConfirmAction((value) => (value === 'resign' ? null : 'resign'))}
         />
         {visibleConfirmAction === 'resign' ? (
-          <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+          <div className="flex items-center gap-2 text-sm text-ink-secondary">
             <span>Resign?</span>
             <button
               type="button"
@@ -137,7 +137,7 @@ export default function DrawResignBar({
                 onResign?.();
               }}
               disabled={actionPending}
-              className="rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-neutral-300"
+              className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-text transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               Yes
             </button>
@@ -145,7 +145,7 @@ export default function DrawResignBar({
               type="button"
               onClick={() => setConfirmAction(null)}
               disabled={actionPending}
-              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:border-neutral-400 hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
+              className="rounded-md border border-line-strong px-2.5 py-1 text-xs font-medium text-ink-secondary transition hover:border-ink-faint hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-50 dark:text-ink"
             >
               No
             </button>

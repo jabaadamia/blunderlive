@@ -17,7 +17,7 @@ export function AuthPageGuard({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-ink-secondary">
         Preparing authentication...
       </div>
     );
@@ -25,7 +25,7 @@ export function AuthPageGuard({ children }: { children: React.ReactNode }) {
 
   if (status === "authenticated") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-ink-secondary">
         Redirecting...
       </div>
     );

@@ -69,11 +69,11 @@ function Branch({ depth, children }: { depth: number; children: React.ReactNode 
     <div className="relative mt-0.5 mb-0.5 pl-3" style={{ marginLeft: depth > 1 ? 6 : 2 }}>
       <span
         aria-hidden
-        className="absolute left-0 top-0 bottom-1.5 w-px bg-neutral-300 dark:bg-neutral-700"
+        className="absolute left-0 top-0 bottom-1.5 w-px bg-line-strong"
       />
       <span
         aria-hidden
-        className="absolute left-0 top-[0.65em] w-2 h-px bg-neutral-300 dark:bg-neutral-700"
+        className="absolute left-0 top-[0.65em] w-2 h-px bg-line-strong"
       />
       {children}
     </div>
@@ -99,7 +99,7 @@ function MoveToken({
   return (
     <span className="inline-flex items-baseline">
       {showNumber && (
-        <span className="mr-0.5 tabular-nums text-neutral-400 dark:text-neutral-500">
+        <span className="mr-0.5 tabular-nums text-ink-faint">
           {moveNumber}
           {isWhite ? "." : "..."}
         </span>
@@ -111,12 +111,12 @@ function MoveToken({
         title={`${node.ply}. ${node.san}`}
         className={[
           "rounded-sm px-1 py-0.5 font-mono transition",
-          "hover:bg-neutral-100 dark:hover:bg-neutral-800",
+          "hover:bg-surface-muted",
           isActive
-            ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+            ? "bg-surface-muted text-ink"
             : isOnActiveLine
-              ? "text-neutral-900 dark:text-neutral-100"
-              : "text-neutral-600 dark:text-neutral-400",
+              ? "text-ink"
+              : "text-ink-secondary",
           className,
         ].join(" ")}
       >
@@ -165,7 +165,7 @@ function toPairRows(nodes: MoveTreeNode[]): PairRow[] {
 function MainlinePairRow({ row, ctx }: { row: PairRow; ctx: RenderCtx }) {
   return (
     <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-1 py-0.5 text-base">
-      <span className="tabular-nums text-neutral-400 dark:text-neutral-500 font-semibold">
+      <span className="tabular-nums text-ink-faint font-semibold">
         {row.moveNumber}
         {row.white ? "." : "..."}
       </span>
@@ -195,12 +195,12 @@ function MoveButtonCell({ node, ctx }: { node: MoveTreeNode; ctx: RenderCtx }) {
       title={`${node.ply}. ${node.san}`}
       className={[
         "min-w-0 truncate rounded-sm px-1.5 py-0.5 text-left font-mono font-medium transition",
-        "hover:bg-neutral-100 dark:hover:bg-neutral-800",
+        "hover:bg-surface-muted",
         isActive
-          ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+          ? "bg-surface-muted text-ink"
           : isOnActiveLine
-            ? "text-neutral-900 dark:text-neutral-100"
-            : "text-neutral-700 dark:text-neutral-300",
+            ? "text-ink"
+            : "text-ink-secondary",
       ].join(" ")}
     >
       {node.san}
@@ -339,7 +339,7 @@ export default function PGNViewer({ tree, currentNodeId, onSelectNode }: PGNView
   }, [tree, rootNode, currentNodeId, activeLineIds, onSelectNode]);
 
   return (
-    <aside className="flex h-full w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 xl:h-full xl:min-h-28 xl:max-w-[20rem]">
+    <aside className="flex h-full w-full min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-sm border border-line bg-surface xl:h-full xl:min-h-28 xl:max-w-[20rem]">
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3">
         {content.length > 0 ? <div>{content}</div> : null}
       </div>

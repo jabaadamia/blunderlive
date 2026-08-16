@@ -50,17 +50,17 @@ export function RatingsDashboard() {
   }, [getMyRatings]);
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-8 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
+    <main className="min-h-screen bg-canvas px-4 py-8 text-ink-strong">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <SiteNav />
 
-        <header className="flex flex-col gap-4 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 md:flex-row md:items-center md:justify-between">
+        <header className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.08em] text-neutral-500">
+            <p className="text-sm uppercase tracking-[0.08em] text-ink-muted">
               BlunderLive
             </p>
             <h1 className="mt-2 text-2xl font-semibold">Account overview</h1>
-            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
+            <p className="mt-2 text-sm text-ink-secondary">
               Your session is active. Ratings below are loaded from
               <span className="font-mono"> /api/ratings/me/</span>.
             </p>
@@ -75,18 +75,18 @@ export function RatingsDashboard() {
           </div>
         </header>
 
-        <section className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <section className="rounded-lg border border-line bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">My ratings</h2>
-              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
+              <p className="mt-1 text-sm text-ink-secondary">
                 This is mainly here so we can confirm the authenticated API flow is working.
               </p>
             </div>
           </div>
 
           {isLoading ? (
-            <p className="mt-6 text-sm text-neutral-600 dark:text-neutral-300">
+            <p className="mt-6 text-sm text-ink-secondary">
               Loading ratings...
             </p>
           ) : error ? (
@@ -94,14 +94,14 @@ export function RatingsDashboard() {
               {error}
             </p>
           ) : ratings.length === 0 ? (
-            <p className="mt-6 text-sm text-neutral-600 dark:text-neutral-300">
+            <p className="mt-6 text-sm text-ink-secondary">
               No ratings were returned for this user yet.
             </p>
           ) : (
             <div className="mt-6 overflow-x-auto">
               <table className="min-w-full border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                  <tr className="border-b border-line">
                     <th className="px-3 py-2 font-medium">Category</th>
                     <th className="px-3 py-2 font-medium">Rating</th>
                     <th className="px-3 py-2 font-medium">Games</th>
@@ -113,7 +113,7 @@ export function RatingsDashboard() {
                   {ratings.map((rating) => (
                     <tr
                       key={rating.category}
-                      className="border-b border-neutral-100 last:border-b-0 dark:border-neutral-800"
+                      className="border-b border-surface-muted last:border-b-0 dark:border-line"
                     >
                       <td className="px-3 py-3 font-medium capitalize">
                         {rating.category.replaceAll("_", " ")}

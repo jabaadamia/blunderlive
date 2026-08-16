@@ -8,6 +8,37 @@
   --selected-piece-bg: #c7bb8b;
   --legal-move-circle-bg: #4e4e4e88;
   --attacked-piece-bg: #474747;
+
+  --canvas: #fafafa;
+  /* page background (neutral-50) */
+  --surface: #ffffff;
+  /* cards / panels (white) */
+  --surface-muted: #f5f5f5;
+  /* subtle fills, hover (neutral-100) */
+  --surface-strong: #e5e5e5;
+  /* raised fills (neutral-200) */
+  --ink: #171717;
+  /* primary text (neutral-900) */
+  --ink-strong: #0a0a0a;
+  /* page-level text (neutral-950) */
+  --ink-secondary: #525252;
+  /* secondary text (neutral-600) */
+  --ink-muted: #737373;
+  /* muted text (neutral-500) */
+  --ink-faint: #a3a3a3;
+  /* faint text (neutral-400) */
+  --ink-on-primary: #d4d4d4;
+  /* label on primary/inverted (neutral-300) */
+  --line: #e5e5e5;
+  /* default border (neutral-200) */
+  --line-strong: #d4d4d4;
+  /* strong border (neutral-300) */
+  --primary: #171717;
+  /* primary action bg (neutral-900) */
+  --primary-hover: #404040;
+  /* primary action hover (neutral-700) */
+  --primary-text: #ffffff;
+  /* text on primary (white) */
 }
 
 @theme inline {
@@ -18,6 +49,21 @@
   --color-selected-piece-bg: var(--selected-piece-bg);
   --color-legal-move-circle-bg: var(--legal-move-circle-bg);
   --color-attacked-piece-bg: var(--attacked-piece-bg);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-strong: var(--surface-strong);
+  --color-ink: var(--ink);
+  --color-ink-strong: var(--ink-strong);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-on-primary: var(--ink-on-primary);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -30,6 +76,36 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --canvas: #0a0a0a;
+    /* neutral-950 */
+    --surface: #171717;
+    /* neutral-900 */
+    --surface-muted: #262626;
+    /* neutral-800 */
+    --surface-strong: #404040;
+    /* neutral-700 */
+    --ink: #f5f5f5;
+    /* neutral-100 */
+    --ink-strong: #fafafa;
+    /* neutral-50 */
+    --ink-secondary: #d4d4d4;
+    /* neutral-300 */
+    --ink-muted: #a3a3a3;
+    /* neutral-400 */
+    --ink-faint: #737373;
+    /* neutral-500 */
+    --ink-on-primary: #525252;
+    /* neutral-600 */
+    --line: #262626;
+    /* neutral-800 */
+    --line-strong: #404040;
+    /* neutral-700 */
+    --primary: #f5f5f5;
+    /* neutral-100 (inverted) */
+    --primary-hover: #d4d4d4;
+    /* neutral-300 */
+    --primary-text: #0a0a0a;
+    /* neutral-950 */
   }
 }
 

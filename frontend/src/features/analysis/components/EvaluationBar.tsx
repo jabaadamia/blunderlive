@@ -55,7 +55,7 @@ export function EvaluationBar({
   const topBg = orientation === "white" ? "bg-neutral-900" : "bg-white";
 
   return (
-    <div className="relative flex h-full w-7 min-w-7 flex-col overflow-hidden rounded-md border border-neutral-300 shadow-inner dark:border-neutral-700">
+    <div className="relative flex h-full w-7 min-w-7 flex-col overflow-hidden rounded-md border border-line-strong shadow-inner">
       <div
         className={`w-full transition-all duration-300 ease-out ${topBg}`}
         style={{ height: `${100 - verticalFill}%` }}

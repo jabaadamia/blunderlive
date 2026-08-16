@@ -86,7 +86,7 @@ export function AnalysisBoard() {
   }, [currentFen]);
 
   const statusElement = (
-    <div className="rounded-sm border border-neutral-200 bg-white px-3 py-2 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 text-sm flex flex-col gap-2">
+    <div className="rounded-sm border border-line bg-surface px-3 py-2 text-center shadow-sm text-sm flex flex-col gap-2">
       <div className="relative">
         <input
           type="text"
@@ -99,24 +99,24 @@ export function AnalysisBoard() {
           spellCheck={false}
           placeholder="Paste FEN to load it…"
           title="FEN of the current position, paste a new FEN and click outside to load it"
-          className="w-full rounded border border-neutral-200 bg-neutral-50 px-2 py-1 pr-8 font-mono text-[0.6875rem] text-neutral-800 outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:focus:border-neutral-500 dark:focus:bg-neutral-900"
+          className="w-full rounded border border-line bg-canvas px-2 py-1 pr-8 font-mono text-[0.6875rem] text-ink outline-none transition focus:border-ink-faint focus:bg-surface dark:border-line-strong"
         />
         <button
           type="button"
           onClick={handleCopyFen}
           title="Copy FEN"
           aria-label="Copy FEN"
-          className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+          className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-ink-muted transition hover:bg-surface-muted hover:text-ink"
         >
           <FaCopy className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="flex items-center justify-center gap-2 border-t border-neutral-100 pt-1 dark:border-neutral-800">
+      <div className="flex items-center justify-center gap-2 border-t border-line pt-1">
         <button
           type="button"
           onClick={handleResetPosition}
-          className="rounded bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+          className="rounded bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-secondary transition hover:bg-surface-strong dark:text-ink"
         >
           Reset
         </button>
@@ -133,7 +133,7 @@ export function AnalysisBoard() {
   );
 
   return (
-    <main className="flex min-h-screen flex-col gap-4 bg-neutral-50 px-4 py-6 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
+    <main className="flex min-h-screen flex-col gap-4 bg-canvas px-4 py-6 text-ink-strong">
       <SiteNav />
 
       <div className="flex min-h-0 flex-1 items-center justify-center p-4">

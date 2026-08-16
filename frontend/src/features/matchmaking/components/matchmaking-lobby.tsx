@@ -161,17 +161,17 @@ export function MatchmakingLobby() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-6 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
+    <main className="min-h-screen bg-canvas px-4 py-6 text-ink-strong">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <SiteNav />
 
         <div className="flex flex-1 flex-col items-center justify-center gap-8 py-8">
           <div className="flex flex-col items-center gap-2 text-center">
-            <p className="text-sm uppercase tracking-widest text-neutral-500">
+            <p className="text-sm uppercase tracking-widest text-ink-muted">
               BlunderLive
             </p>
             <h1 className="text-4xl font-bold">Find a game</h1>
-            <p className="mt-1 text-sm text-neutral-500">
+            <p className="mt-1 text-sm text-ink-muted">
               {selectedLabel} · {rated ? "Rated" : "Casual"}
             </p>
           </div>
@@ -193,7 +193,7 @@ export function MatchmakingLobby() {
                 <button
                   type="button"
                   onClick={handlePlay}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-900 px-6 py-4 text-lg font-semibold text-white transition hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-lg font-semibold text-primary-text transition hover:bg-primary-hover"
                 >
                   <FiPlay className="h-5 w-5" />
                   Play
@@ -202,7 +202,7 @@ export function MatchmakingLobby() {
             )}
 
             {lobbyState === "joining" && (
-              <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-6 py-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+              <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface px-6 py-4 text-sm text-ink-secondary">
                 <FiLoader className="h-4 w-4 animate-spin" />
                 Joining queue…
               </div>
@@ -210,14 +210,14 @@ export function MatchmakingLobby() {
 
             {lobbyState === "queued" && (
               <>
-                <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-6 py-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface px-6 py-4 text-sm text-ink-secondary">
                   <FiLoader className="h-4 w-4 animate-spin" />
                   Looking for an opponent…
                 </div>
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="flex items-center gap-1 text-sm text-neutral-500 underline-offset-4 hover:underline"
+                  className="flex items-center gap-1 text-sm text-ink-muted underline-offset-4 hover:underline"
                 >
                   <FiX className="h-4 w-4" />
                   Cancel
@@ -244,7 +244,7 @@ export function MatchmakingLobby() {
                     setLobbyState("idle");
                     setErrorMessage(null);
                   }}
-                  className="text-sm text-neutral-500 underline-offset-4 hover:underline"
+                  className="text-sm text-ink-muted underline-offset-4 hover:underline"
                 >
                   Try again
                 </button>
@@ -287,16 +287,16 @@ function TimeControlPicker({
               type="button"
               onClick={() => onSelect(preset.id)}
               className={`flex flex-col items-center gap-1 rounded-lg border px-3 py-2 text-sm transition ${selectedId === preset.id
-                ? "border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900"
-                : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-600"
+                ? "border-primary bg-primary text-primary-text"
+                : "border-line bg-surface text-ink-secondary hover:border-ink-faint dark:hover:border-ink-on-primary"
                 }`}
             >
               <Icon className="h-4 w-4" />
               <span className="font-semibold">{preset.label}</span>
               <span
                 className={`text-xs ${selectedId === preset.id
-                  ? "text-neutral-300 dark:text-neutral-600"
-                  : "text-neutral-400 dark:text-neutral-500"
+                  ? "text-ink-on-primary"
+                  : "text-ink-faint"
                   }`}
               >
                 {preset.category}
@@ -309,8 +309,8 @@ function TimeControlPicker({
           type="button"
           onClick={() => onSelect(CUSTOM_ID)}
           className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 text-sm transition ${selectedId === CUSTOM_ID
-            ? "border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900"
-            : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-600"
+            ? "border-primary bg-primary text-primary-text"
+            : "border-line bg-surface text-ink-secondary hover:border-ink-faint dark:hover:border-ink-on-primary"
             }`}
         >
           <FiSliders className="h-4 w-4" />
@@ -319,8 +319,8 @@ function TimeControlPicker({
       </div>
 
       {selectedId === CUSTOM_ID && (
-        <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
-          <label className="flex flex-1 items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+        <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2">
+          <label className="flex flex-1 items-center gap-2 text-sm text-ink-secondary">
             Minutes
             <input
               type="number"
@@ -328,10 +328,10 @@ function TimeControlPicker({
               max={MAX_CUSTOM_MINUTES}
               value={customMinutes}
               onChange={(e) => onCustomMinutesChange(e.target.value)}
-              className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+              className="w-full rounded-md border border-line bg-canvas px-2 py-1 text-ink dark:border-line-strong dark:bg-surface-muted"
             />
           </label>
-          <label className="flex flex-1 items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+          <label className="flex flex-1 items-center gap-2 text-sm text-ink-secondary">
             Increment
             <input
               type="number"
@@ -339,7 +339,7 @@ function TimeControlPicker({
               max={MAX_CUSTOM_INCREMENT_SECONDS}
               value={customIncrementSeconds}
               onChange={(e) => onCustomIncrementChange(e.target.value)}
-              className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+              className="w-full rounded-md border border-line bg-canvas px-2 py-1 text-ink dark:border-line-strong dark:bg-surface-muted"
             />
           </label>
         </div>
@@ -350,13 +350,13 @@ function TimeControlPicker({
 
 function RatedToggle({ rated, onChange }: { rated: boolean; onChange: (rated: boolean) => void }) {
   return (
-    <div className="flex w-full overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
+    <div className="flex w-full overflow-hidden rounded-lg border border-line">
       <button
         type="button"
         onClick={() => onChange(true)}
         className={`flex-1 px-3 py-2 text-sm font-medium transition ${rated
-          ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-          : "bg-white text-neutral-500 hover:text-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+          ? "bg-primary text-primary-text"
+          : "bg-surface text-ink-muted hover:text-ink"
           }`}
       >
         Rated
@@ -365,8 +365,8 @@ function RatedToggle({ rated, onChange }: { rated: boolean; onChange: (rated: bo
         type="button"
         onClick={() => onChange(false)}
         className={`flex-1 px-3 py-2 text-sm font-medium transition ${!rated
-          ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-          : "bg-white text-neutral-500 hover:text-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+          ? "bg-primary text-primary-text"
+          : "bg-surface text-ink-muted hover:text-ink"
           }`}
       >
         Casual

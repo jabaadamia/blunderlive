@@ -21,13 +21,13 @@ export function SiteNav() {
       <div className="flex items-center gap-4">
         <Link
           href="/"
-          className="text-lg font-bold text-neutral-900 transition hover:text-neutral-700 dark:text-neutral-100 dark:hover:text-neutral-300"
+          className="text-lg font-bold text-ink transition hover:text-ink-secondary dark:text-ink dark:hover:text-ink-secondary"
         >
           Blunderlive
         </Link>
         <Link
           href="/analysis"
-          className="text-sm font-medium text-neutral-600 transition hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+          className="text-sm font-medium text-ink-secondary transition hover:text-ink dark:text-ink-muted dark:hover:text-ink"
         >
           Analysis
         </Link>
@@ -35,7 +35,7 @@ export function SiteNav() {
 
       <div className="flex items-center gap-4">
         {status === "loading" ? (
-          <span className="text-sm text-neutral-500 dark:text-neutral-400">
+          <span className="text-sm text-ink-muted">
             Checking session...
           </span>
         ) : isAuthenticated ? (
@@ -43,7 +43,7 @@ export function SiteNav() {
             {user && (
               <Link
                 href={`/profile/${user.id}`}
-                className="text-sm font-medium text-neutral-900 hover:underline dark:text-neutral-100"
+                className="text-sm font-medium text-ink hover:underline dark:text-ink"
               >
                 {user.username}
               </Link>
@@ -51,7 +51,7 @@ export function SiteNav() {
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-ink-secondary transition hover:bg-surface-muted dark:text-ink"
             >
               Sign out
             </button>
@@ -60,13 +60,13 @@ export function SiteNav() {
           <>
             <Link
               href="/login"
-              className="text-sm text-neutral-600 transition hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100"
+              className="text-sm text-ink-secondary transition hover:text-ink dark:text-ink-secondary dark:hover:text-ink"
             >
               Sign in
             </Link>
             <Link
               href="/register"
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-neutral-700 dark:bg-neutral-800 dark:text-white dark:hover:bg-neutral-700"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-text transition hover:bg-primary-hover dark:bg-surface-muted dark:text-white dark:hover:bg-surface-strong"
             >
               Register
             </Link>

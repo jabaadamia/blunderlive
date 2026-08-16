@@ -43,13 +43,13 @@ export function EnginePanel({
   }, [evalResult, isCurrentFenEval]);
 
   return (
-    <div className="flex w-full flex-col gap-1.5 rounded-md border border-neutral-200 bg-white p-2.5 shadow-xs dark:border-neutral-800 dark:bg-neutral-900 text-xs">
+    <div className="flex w-full flex-col gap-1.5 rounded-md border border-line bg-surface p-2.5 shadow-xs text-xs">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 font-semibold text-neutral-900 dark:text-neutral-100">
-          <span className={`flex h-2 w-2 rounded-full ${isEvaluating ? "bg-emerald-500 animate-pulse" : "bg-neutral-400"}`} />
+        <div className="flex items-center gap-2 font-semibold text-ink">
+          <span className={`flex h-2 w-2 rounded-full ${isEvaluating ? "bg-emerald-500 animate-pulse" : "bg-ink-faint"}`} />
           <span>Stockfish 18</span>
           {isEnabled && isCurrentFenEval && evalResult && (
-            <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+            <span className="text-[11px] font-mono text-ink-muted">
               (Depth {evalResult.depth})
             </span>
           )}
@@ -57,7 +57,7 @@ export function EnginePanel({
 
         <div className="flex items-center gap-2">
           {isEnabled && (
-            <span className="font-mono text-sm font-bold text-neutral-900 dark:text-neutral-50">
+            <span className="font-mono text-sm font-bold text-ink dark:text-ink-strong">
               {scoreText}
             </span>
           )}
@@ -86,11 +86,11 @@ export function EnginePanel({
       {isEnabled && (
         <div className="min-h-[2.5rem]">
           {formattedLine ? (
-            <div className="font-mono text-neutral-700 dark:text-neutral-300 break-words leading-relaxed">
+            <div className="font-mono text-ink-secondary break-words leading-relaxed">
               {formattedLine}
             </div>
           ) : (
-            <div className="text-neutral-400 italic py-1">
+            <div className="text-ink-faint italic py-1">
               {!isEngineReady ? "Loading engine..." : isEvaluating ? "Calculating best line..." : "Engine ready"}
             </div>
           )}
@@ -98,9 +98,9 @@ export function EnginePanel({
       )}
 
       {isEnabled && isCurrentFenEval && evalResult?.bestMove && onPlayBestMove && (
-        <div className="mt-0.5 flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
+        <div className="mt-0.5 flex items-center justify-between text-[11px] text-ink-muted">
           <span>
-            Press <kbd className="rounded bg-neutral-200 px-1 py-0.5 font-mono text-[10px] text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200">Space</kbd> to play best move
+            Press <kbd className="rounded bg-surface-strong px-1 py-0.5 font-mono text-[10px] text-ink dark:bg-surface-muted dark:text-ink-strong">Space</kbd> to play best move
           </span>
           <button
             type="button"

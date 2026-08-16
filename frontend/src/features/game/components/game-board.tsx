@@ -143,8 +143,8 @@ export function GameBoard({ gameId }: GameBoardProps) {
   const hasOutgoingDrawOffer = drawOfferState === "outgoing";
 
   const statusElement = gameOver && snapshot ? (
-    <div className="rounded-sm border border-neutral-200 bg-white px-3 py-2 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 text-sm flex flex-col gap-2">
-      <div className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center justify-center gap-1.5 flex-wrap">
+    <div className="rounded-sm border border-line bg-surface px-3 py-2 text-center shadow-sm text-sm flex flex-col gap-2">
+      <div className="font-semibold text-ink flex items-center justify-center gap-1.5 flex-wrap">
         <span>
           {snapshot.result === "1-0" && "White wins"}
           {snapshot.result === "0-1" && "Black wins"}
@@ -152,13 +152,13 @@ export function GameBoard({ gameId }: GameBoardProps) {
           {!snapshot.result && "Game over"}
         </span>
         {snapshot.termination && (
-          <span className="text-xs capitalize text-neutral-400 dark:text-neutral-500">
+          <span className="text-xs capitalize text-ink-faint">
             • {snapshot.termination.replace(/_/g, " ")}
           </span>
         )}
       </div>
       {snapshot.rated && (
-        <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+        <div className="text-xs font-medium text-ink-secondary">
           {myRatingChange
             ? `Rating ${myRatingChange.delta >= 0 ? "+" : ""}${myRatingChange.delta} (${myRatingChange.after})`
             : "Rating updating..."}
@@ -236,7 +236,7 @@ export function GameBoard({ gameId }: GameBoardProps) {
   }, []);
 
   return (
-    <main className="flex min-h-screen flex-col gap-4 bg-neutral-50 px-4 py-6 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
+    <main className="flex min-h-screen flex-col gap-4 bg-canvas px-4 py-6 text-ink-strong">
       <SiteNav />
 
       {wsStatus !== "open" && (
@@ -281,11 +281,11 @@ export function GameBoard({ gameId }: GameBoardProps) {
 
           {!dismissed && gameOver && snapshot && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-              <div className="relative flex w-96 flex-col items-center gap-5 rounded-xl border border-neutral-300 bg-white px-10 py-8 shadow-2xl dark:border-neutral-700 dark:bg-neutral-950">
+              <div className="relative flex w-96 flex-col items-center gap-5 rounded-xl border border-line-strong bg-surface px-10 py-8 shadow-2xl dark:bg-canvas">
                 <button
                   type="button"
                   onClick={() => setDismissed(true)}
-                  className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+                  className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full text-ink-faint transition hover:bg-surface-muted hover:text-ink-secondary"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -293,19 +293,19 @@ export function GameBoard({ gameId }: GameBoardProps) {
                 </button>
 
                 <div className="text-center">
-                  <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+                  <div className="text-xl font-bold text-ink">
                     {snapshot.result === "1-0" && "White wins"}
                     {snapshot.result === "0-1" && "Black wins"}
                     {snapshot.result === "1/2-1/2" && "Draw"}
                     {!snapshot.result && "Game over"}
                   </div>
                   {snapshot.termination && (
-                    <div className="mt-1 text-sm capitalize text-neutral-500">
+                    <div className="mt-1 text-sm capitalize text-ink-muted">
                       {snapshot.termination.replace(/_/g, " ")}
                     </div>
                   )}
                   {snapshot.rated && myRatingChange && (
-                    <div className="mt-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                    <div className="mt-1.5 text-sm font-medium text-ink-secondary">
                       Rating {myRatingChange.delta >= 0 ? "+" : ""}{myRatingChange.delta} ({myRatingChange.after})
                     </div>
                   )}
@@ -333,7 +333,7 @@ export function GameBoard({ gameId }: GameBoardProps) {
                 {queueState === "joining" && (
                   <div className="flex w-full items-center justify-center gap-2 py-2.5">
                     <Spinner />
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400">Joining queue…</span>
+                    <span className="text-sm text-ink-secondary">Joining queue…</span>
                   </div>
                 )}
 
@@ -341,12 +341,12 @@ export function GameBoard({ gameId }: GameBoardProps) {
                   <div className="flex w-full flex-col items-center gap-3">
                     <div className="flex items-center gap-2">
                       <Spinner />
-                      <span className="text-sm text-neutral-600 dark:text-neutral-400">Searching for opponent…</span>
+                      <span className="text-sm text-ink-secondary">Searching for opponent…</span>
                     </div>
                     <button
                       type="button"
                       onClick={handleCancelQueue}
-                      className="text-xs text-neutral-400 transition hover:text-neutral-600 dark:hover:text-neutral-300"
+                      className="text-xs text-ink-faint transition hover:text-ink-secondary"
                     >
                       Cancel
                     </button>

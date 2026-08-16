@@ -117,7 +117,7 @@ function RatingChart({ history }: { history: RatingHistoryEntry[] }) {
 
   if (data.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-line-strong text-sm text-ink-muted">
         No rating history for this category yet.
       </div>
     );
@@ -333,13 +333,13 @@ export function ProfilePage({ userId }: ProfilePageProps) {
     categoryButtons.length > 0 ? categoryButtons : [...RATING_CATEGORIES];
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-8 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
+    <main className="min-h-screen bg-canvas px-4 py-8 text-ink-strong">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <SiteNav />
 
         {/* Header */}
         <header className="pt-4 pb-2">
-          <p className="text-xs uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+          <p className="text-xs uppercase tracking-[0.1em] text-ink-faint">
             Profile
           </p>
           <h1 className="mt-1 break-words text-3xl font-bold tracking-tight">
@@ -368,7 +368,7 @@ export function ProfilePage({ userId }: ProfilePageProps) {
                 className={`flex flex-col items-center rounded-lg px-5 py-3 text-center transition ${
                   isActive
                     ? "bg-amber-500 text-white shadow-md shadow-amber-500/25"
-                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                    : "bg-surface-muted text-ink-secondary hover:bg-surface-strong"
                 }`}
               >
                 <span className="text-sm font-bold uppercase tracking-wide capitalize">
@@ -379,7 +379,7 @@ export function ProfilePage({ userId }: ProfilePageProps) {
                     className={`mt-0.5 text-lg font-semibold tabular-nums ${
                       isActive
                         ? "text-white/90"
-                        : "text-neutral-900 dark:text-neutral-100"
+                        : "text-ink"
                     }`}
                   >
                     {ratingForCategory.value}
@@ -392,17 +392,17 @@ export function ProfilePage({ userId }: ProfilePageProps) {
 
         {/* Rating Chart */}
         <section>
-          <h2 className="text-base font-semibold text-neutral-700 dark:text-neutral-300">
+          <h2 className="text-base font-semibold text-ink-secondary">
             Rating History
             {selectedCategory && (
-              <span className="ml-2 text-sm font-normal capitalize text-neutral-400 dark:text-neutral-500">
+              <span className="ml-2 text-sm font-normal capitalize text-ink-faint">
                 {formatCategory(selectedCategory)}
               </span>
             )}
           </h2>
           <div className="mt-3">
             {isLoadingRatings || isLoadingDetail ? (
-              <div className="flex h-72 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+              <div className="flex h-72 items-center justify-center rounded-lg border border-dashed border-line-strong text-sm text-ink-muted">
                 Loading chart…
               </div>
             ) : (
@@ -413,10 +413,10 @@ export function ProfilePage({ userId }: ProfilePageProps) {
 
         {/* Games List */}
         <section>
-          <h2 className="text-base font-semibold text-neutral-700 dark:text-neutral-300">
+          <h2 className="text-base font-semibold text-ink-secondary">
             Games
             {selectedRating != null && (
-              <span className="ml-2 text-sm font-normal text-neutral-400 dark:text-neutral-500">
+              <span className="ml-2 text-sm font-normal text-ink-faint">
                 {selectedRating.games_played} played
               </span>
             )}
@@ -429,9 +429,9 @@ export function ProfilePage({ userId }: ProfilePageProps) {
           ) : null}
 
           {isLoadingDetail ? (
-            <p className="mt-4 text-sm text-neutral-500">Loading games…</p>
+            <p className="mt-4 text-sm text-ink-muted">Loading games…</p>
           ) : games.length === 0 ? (
-            <p className="mt-4 text-sm text-neutral-500">
+            <p className="mt-4 text-sm text-ink-muted">
               No games found for this category.
             </p>
           ) : (
@@ -444,7 +444,7 @@ export function ProfilePage({ userId }: ProfilePageProps) {
                   <Link
                     key={game.id}
                     href={`/game-history/${game.id}`}
-                    className="group flex items-center justify-between gap-4 rounded-lg border border-neutral-200 px-4 py-3 transition hover:border-amber-300 hover:bg-amber-50/50 dark:border-neutral-800 dark:hover:border-amber-700/60 dark:hover:bg-amber-950/15"
+                    className="group flex items-center justify-between gap-4 rounded-lg border border-line px-4 py-3 transition hover:border-amber-300 hover:bg-amber-50/50 dark:border-line dark:hover:border-amber-700/60 dark:hover:bg-amber-950/15"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
@@ -454,12 +454,12 @@ export function ProfilePage({ userId }: ProfilePageProps) {
                         </span>
                         {opponent?.username ?? "Unknown"}
                       </p>
-                      <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                      <p className="mt-0.5 text-xs text-ink-muted">
                         {formatDate(game.started_at)} · {game.time_control} ·{" "}
                         {game.move_count} moves
                       </p>
                     </div>
-                    <span className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
+                    <span className="shrink-0 text-xs text-ink-faint">
                       {game.result}
                     </span>
                   </Link>
@@ -470,7 +470,7 @@ export function ProfilePage({ userId }: ProfilePageProps) {
 
           <div ref={loadMoreRef} className="h-8" />
           {isLoadingMoreGames ? (
-            <p className="text-center text-sm text-neutral-500">
+            <p className="text-center text-sm text-ink-muted">
               Loading more games…
             </p>
           ) : null}

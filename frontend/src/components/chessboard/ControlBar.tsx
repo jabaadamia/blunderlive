@@ -38,7 +38,7 @@ function ControlButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-9 w-9 items-center justify-center text-neutral-600 transition hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-35 dark:text-neutral-300 dark:hover:text-neutral-100"
+      className="flex h-9 w-9 items-center justify-center text-ink-secondary transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
     </button>
@@ -82,7 +82,7 @@ export default function ControlBar({
         disabled={!canGoToLast}
         onClick={onLastMove}
       />
-      <div className="mx-1 h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+      <div className="mx-1 h-5 w-px bg-line dark:bg-line-strong" />
       <ControlButton
         icon={FaUndoAlt}
         title="Flip board"

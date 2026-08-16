@@ -54,8 +54,8 @@ export function Timer({
       className={`flex items-center justify-center rounded-md border px-3 py-1.5 font-mono text-lg tabular-nums transition-colors ${isLowTime
           ? "border-red-300 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
           : isRunning
-            ? "border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900"
-            : "border-neutral-200 bg-white text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"
+            ? "border-primary bg-primary text-primary-text"
+            : "border-line bg-surface text-ink-muted"
         }`}
     >
       {formatDuration(shownMs)}

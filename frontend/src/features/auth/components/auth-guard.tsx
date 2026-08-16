@@ -24,7 +24,7 @@ export function AuthGuard({
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-ink-secondary">
         Checking your session...
       </div>
     );
@@ -32,7 +32,7 @@ export function AuthGuard({
 
   if (status === "unauthenticated") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 text-sm text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-ink-secondary">
         Redirecting to sign in...
       </div>
     );

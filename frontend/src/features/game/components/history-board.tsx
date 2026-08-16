@@ -125,7 +125,7 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
         <div className="flex items-center gap-2 font-medium">
           <Link
             href={`/profile/${player.id}`}
-            className="text-neutral-900 hover:underline dark:text-neutral-100"
+            className="text-ink hover:underline"
           >
             {player.username}
           </Link>
@@ -150,8 +150,8 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
   };
 
   const statusElement = gameDetail ? (
-    <div className="rounded-sm border border-neutral-200 bg-white px-3 py-2 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 text-sm flex flex-col gap-2">
-      <div className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center justify-center gap-1.5 flex-wrap">
+    <div className="rounded-sm border border-line bg-surface px-3 py-2 text-center shadow-sm text-sm flex flex-col gap-2">
+      <div className="font-semibold text-ink flex items-center justify-center gap-1.5 flex-wrap">
         <span>
           {gameDetail.result === "1-0" && "White wins"}
           {gameDetail.result === "0-1" && "Black wins"}
@@ -159,14 +159,14 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
           {!gameDetail.result && "Game over"}
         </span>
         {gameDetail.termination && (
-          <span className="text-xs capitalize text-neutral-400 dark:text-neutral-500">
+          <span className="text-xs capitalize text-ink-faint">
             • {gameDetail.termination.replace(/_/g, " ")}
           </span>
         )}
       </div>
       {gameDetail.rated &&
         (gameDetail.white_rating_delta !== null || gameDetail.black_rating_delta !== null) && (
-          <div className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center justify-center gap-3 flex-wrap">
+          <div className="text-xs text-ink-secondary flex items-center justify-center gap-3 flex-wrap">
             {gameDetail.white_rating_delta !== null && (
               <span>
                 White: {gameDetail.white_rating_delta >= 0 ? "+" : ""}
@@ -182,12 +182,12 @@ export function HistoryBoard({ gameId }: HistoryBoardProps) {
           </div>
         )}
 
-      <div className="pt-1 border-t border-neutral-100 dark:border-neutral-800" />
+      <div className="pt-1 border-t border-line" />
     </div>
   ) : null;
 
   return (
-    <main className="flex min-h-screen flex-col gap-4 bg-neutral-50 px-4 py-6 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
+    <main className="flex min-h-screen flex-col gap-4 bg-canvas px-4 py-6 text-ink-strong">
       <SiteNav />
 
       {error && (
