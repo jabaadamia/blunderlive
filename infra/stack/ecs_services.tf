@@ -107,16 +107,10 @@ resource "aws_ecs_service" "core" {
     container_port   = 8000
   }
 
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_private_dns_namespace.main.arn
-    service {
-      port_name      = "core-port"
-      discovery_name = "core"
-      client_alias {
-        port = 8000
-      }
-    }
+  service_registries {
+    registry_arn   = aws_service_discovery_service.core.arn
+    container_name = "core"
+    container_port = 8000
   }
 
   depends_on = [aws_lb_listener.http, aws_db_instance.postgres, aws_elasticache_cluster.redis]
@@ -249,7 +243,7 @@ resource "aws_ecs_task_definition" "game" {
         { name = "CORE_GAMES_PROCESSED_STREAM", value = "games.processed" },
         { name = "GAME_GAMES_PROCESSED_CONSUMER_GROUP", value = "game-rating-updates" },
         { name = "CORS_ALLOWED_ORIGINS", value = "*" },
-        { name = "CORE_API_BASE_URL", value = "http://core:8000" }
+        { name = "CORE_API_BASE_URL", value = "http://core.${aws_service_discovery_private_dns_namespace.main.name}:8000" }
       ]
 
       secrets = [
@@ -294,16 +288,10 @@ resource "aws_ecs_service" "game" {
     container_port   = 8005
   }
 
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_private_dns_namespace.main.arn
-    service {
-      port_name      = "game-port"
-      discovery_name = "game"
-      client_alias {
-        port = 8005
-      }
-    }
+  service_registries {
+    registry_arn   = aws_service_discovery_service.game.arn
+    container_name = "game"
+    container_port = 8005
   }
 
   depends_on = [aws_lb_listener.http, aws_elasticache_cluster.redis]
@@ -341,7 +329,7 @@ resource "aws_ecs_task_definition" "game_worker" {
         { name = "CORE_GAMES_PROCESSED_STREAM", value = "games.processed" },
         { name = "GAME_GAMES_PROCESSED_CONSUMER_GROUP", value = "game-rating-updates" },
         { name = "CORS_ALLOWED_ORIGINS", value = "*" },
-        { name = "CORE_API_BASE_URL", value = "http://core:8000" }
+        { name = "CORE_API_BASE_URL", value = "http://core.${aws_service_discovery_private_dns_namespace.main.name}:8000" }
       ]
 
       secrets = [
@@ -378,11 +366,6 @@ resource "aws_ecs_service" "game_worker" {
     subnets          = [aws_subnet.public_1.id, aws_subnet.public_2.id]
     security_groups  = [aws_security_group.ecs_tasks.id]
     assign_public_ip = true
-  }
-
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_private_dns_namespace.main.arn
   }
 
   depends_on = [aws_elasticache_cluster.redis]
@@ -423,8 +406,8 @@ resource "aws_ecs_task_definition" "frontend" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "3000" },
         { name = "HOSTNAME", value = "0.0.0.0" },
-        { name = "INTERNAL_CORE_URL", value = "http://core:8000" },
-        { name = "INTERNAL_GAME_URL", value = "http://game:8005" }
+        { name = "INTERNAL_CORE_URL", value = "http://core.${aws_service_discovery_private_dns_namespace.main.name}:8000" },
+        { name = "INTERNAL_GAME_URL", value = "http://game.${aws_service_discovery_private_dns_namespace.main.name}:8005" }
       ]
 
       logConfiguration = {
@@ -460,11 +443,6 @@ resource "aws_ecs_service" "frontend" {
     target_group_arn = aws_lb_target_group.frontend.arn
     container_name   = "frontend"
     container_port   = 3000
-  }
-
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_private_dns_namespace.main.arn
   }
 
   depends_on = [aws_lb_listener.http]
