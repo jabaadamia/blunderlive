@@ -58,6 +58,9 @@ redis_data/
 services/core/staticfiles/
 services/core/media/
 
+# Terraform
+.terraform/
+
 # Python service artifacts
 .pytest_cache/
 .coverage*

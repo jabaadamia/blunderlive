@@ -1,0 +1,169 @@
+name: Build & Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Known trade-off (documented, not fixed): this workflow re-registers task
+# definition revisions with only the container image changed, independent of
+# Terraform. If infra/stack/ecs_services.tf is edited to change env vars,
+# secrets, or other container config, those changes will NOT reach running
+# services until the next `terraform apply`; a CI deploy in between runs on
+# the stale env/secrets config with a newer image. Accepted at this scale.
+
+permissions:
+  id-token: write # Required for requesting the JWT via OIDC
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      AWS_ACCOUNT_ID: "171376498459"
+      PROJECT_NAME: blunderlive
+    strategy:
+      matrix:
+        service:
+          - frontend
+          - core
+          - game
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-github-actions-deployer
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service == 'frontend' && 'frontend/Dockerfile' || format('services/{0}/Dockerfile', matrix.service) }}
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ matrix.service }}:sha-${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ matrix.service }}:latest
+          build-args: |
+            ${{ matrix.service == 'frontend' && 'NEXT_PUBLIC_CORE_API_BASE_URL=/api' || '' }}
+            ${{ matrix.service == 'frontend' && 'NEXT_PUBLIC_GAME_API_BASE_URL=/api/game' || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-ecs:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      AWS_ACCOUNT_ID: "171376498459"
+      PROJECT_NAME: blunderlive
+      IMAGE_TAG: sha-${{ github.sha }}
+    steps:
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-github-actions-deployer
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Immutable Task Definition Revisions (if cluster is active)
+        run: |
+          CLUSTER_NAME="${PROJECT_NAME}-cluster"
+          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          # Check if cluster is active
+          if aws ecs describe-clusters --clusters "$CLUSTER_NAME" --query "clusters[?status=='ACTIVE'].clusterName" --output text | grep -q "$CLUSTER_NAME"; then
+            echo "ECS Cluster $CLUSTER_NAME is active. Updating task definitions with tag: $IMAGE_TAG"
+
+            # Service mappings: ECS Service Name -> ECR Repo Name -> Container Name
+            declare -A SERVICE_IMAGES=(
+              ["${PROJECT_NAME}-frontend"]="${ECR_REGISTRY}/${PROJECT_NAME}-frontend:${IMAGE_TAG}"
+              ["${PROJECT_NAME}-core"]="${ECR_REGISTRY}/${PROJECT_NAME}-core:${IMAGE_TAG}"
+              ["${PROJECT_NAME}-core-worker"]="${ECR_REGISTRY}/${PROJECT_NAME}-core:${IMAGE_TAG}"
+              ["${PROJECT_NAME}-game"]="${ECR_REGISTRY}/${PROJECT_NAME}-game:${IMAGE_TAG}"
+              ["${PROJECT_NAME}-game-worker"]="${ECR_REGISTRY}/${PROJECT_NAME}-game:${IMAGE_TAG}"
+            )
+
+            # Run migrations as a one-off task before the rolling update; abort the deploy if they fail.
+            if aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[?status=='ACTIVE'].serviceName" --output text | grep -q "${PROJECT_NAME}-core"; then
+              echo "Running migrations for core..."
+              CORE_TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].taskDefinition" --output text)
+              SUBNETS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.subnets" --output json | jq -r 'join(",")')
+              SECURITY_GROUPS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json | jq -r 'join(",")')
+              MIGRATE_OVERRIDES=$(jq -n --arg img "${ECR_REGISTRY}/${PROJECT_NAME}-core:${IMAGE_TAG}" '{containerOverrides:[{name:"core", image:$img, command:["python","manage.py","migrate","--noinput"]}]}')
+
+              MIGRATE_TASK_ARN=$(aws ecs run-task \
+                --cluster "$CLUSTER_NAME" \
+                --task-definition "$CORE_TASK_DEF" \
+                --launch-type FARGATE \
+                --count 1 \
+                --overrides "$MIGRATE_OVERRIDES" \
+                --network-configuration "awsvpcConfiguration={subnets=$SUBNETS,securityGroups=$SECURITY_GROUPS,assignPublicIp=ENABLED}" \
+                --query "tasks[0].taskArn" \
+                --output text)
+              echo "Migration task started: $MIGRATE_TASK_ARN"
+
+              LAST_STATUS=""
+              for i in $(seq 1 120); do
+                LAST_STATUS=$(aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks "$MIGRATE_TASK_ARN" --query "tasks[0].lastStatus" --output text)
+                [ "$LAST_STATUS" = "STOPPED" ] && break
+                sleep 10
+              done
+
+              if [ "$LAST_STATUS" != "STOPPED" ]; then
+                echo "Migration task did not stop within timeout (last status: $LAST_STATUS). Aborting deploy."
+                exit 1
+              fi
+
+              MIGRATE_EXIT_CODE=$(aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks "$MIGRATE_TASK_ARN" --query "tasks[0].containers[0].exitCode" --output text)
+              echo "Migration task finished with exit code $MIGRATE_EXIT_CODE"
+
+              if [ "$MIGRATE_EXIT_CODE" != "0" ]; then
+                echo "Database migrations FAILED (exit code $MIGRATE_EXIT_CODE). Aborting deploy."
+                exit 1
+              fi
+              echo "Migrations completed successfully."
+            else
+              echo "Core service not found or inactive, skipping migrations."
+            fi
+
+            for SVC in "${!SERVICE_IMAGES[@]}"; do
+              if aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SVC" --query "services[?status=='ACTIVE'].serviceName" --output text | grep -q "$SVC"; then
+                echo "Fetching active task definition for $SVC..."
+                CURRENT_TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SVC" --query "services[0].taskDefinition" --output text)
+                
+                NEW_IMAGE="${SERVICE_IMAGES[$SVC]}"
+                echo "Creating new task definition revision for $SVC with image $NEW_IMAGE..."
+                
+                # Fetch full task definition json and strip metadata fields
+                NEW_DEF_JSON=$(aws ecs describe-task-definition --task-definition "$CURRENT_TASK_DEF" --query "taskDefinition" | jq --arg img "$NEW_IMAGE" '
+                  .containerDefinitions[0].image = $img |
+                  del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
+                ')
+
+                # Register new revision
+                NEW_REVISION_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_DEF_JSON" --query "taskDefinition.taskDefinitionArn" --output text)
+                echo "Registered revision: $NEW_REVISION_ARN"
+
+                # Update ECS service to the newly registered revision
+                aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SVC" --task-definition "$NEW_REVISION_ARN" >/dev/null
+                echo "Updated $SVC to $NEW_REVISION_ARN successfully."
+              else
+                echo "Service $SVC not found or inactive, skipping."
+              fi
+            done
+            echo "All active services updated to commit $IMAGE_TAG."
+          else
+            echo "ECS Cluster $CLUSTER_NAME is not currently active (ephemeral stack is down). New images in ECR will be picked up on next terraform apply."
+          fi

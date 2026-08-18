@@ -1,0 +1,14 @@
+aws_region          = "us-east-1"
+aws_account_id      = "171376498459"
+project_name        = "blunderlive"
+vpc_cidr            = "10.0.0.0/16"
+frontend_image_tag  = "latest"
+core_image_tag      = "latest"
+game_image_tag      = "latest"
+db_name             = "blunderlive_core"
+db_username         = "blunderlive_admin"
+
+# (uncomment when adding custom domain later)
+# enable_custom_domain = true
+# domain_name          = "blunderlive.com"
+# acm_certificate_arn  = "arn:aws:acm:us-east-1:171376498459:certificate/..."
