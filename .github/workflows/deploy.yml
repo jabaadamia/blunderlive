@@ -99,9 +99,10 @@ jobs:
             if aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[?status=='ACTIVE'].serviceName" --output text | grep -q "${PROJECT_NAME}-core"; then
               echo "Running migrations for core..."
               CORE_TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].taskDefinition" --output text)
-              SUBNETS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.subnets" --output json | jq -r 'join(",")')
-              SECURITY_GROUPS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json | jq -r 'join(",")')
+              SUBNETS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.subnets" --output json)
+              SECURITY_GROUPS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json)
               MIGRATE_OVERRIDES=$(jq -n --arg img "${ECR_REGISTRY}/${PROJECT_NAME}-core:${IMAGE_TAG}" '{containerOverrides:[{name:"core", image:$img, command:["python","manage.py","migrate","--noinput"]}]}')
+              NETWORK_CONFIG=$(jq -n --argjson subs "$SUBNETS" --argjson sgs "$SECURITY_GROUPS" '{awsvpcConfiguration:{subnets:$subs,securityGroups:$sgs,assignPublicIp:"ENABLED"}}')
 
               MIGRATE_TASK_ARN=$(aws ecs run-task \
                 --cluster "$CLUSTER_NAME" \
@@ -109,7 +110,7 @@ jobs:
                 --launch-type FARGATE \
                 --count 1 \
                 --overrides "$MIGRATE_OVERRIDES" \
-                --network-configuration "awsvpcConfiguration={subnets=$SUBNETS,securityGroups=$SECURITY_GROUPS,assignPublicIp=ENABLED}" \
+                --network-configuration "$NETWORK_CONFIG" \
                 --query "tasks[0].taskArn" \
                 --output text)
               echo "Migration task started: $MIGRATE_TASK_ARN"
