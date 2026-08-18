@@ -101,7 +101,7 @@ jobs:
               CORE_TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].taskDefinition" --output text)
               SUBNETS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.subnets" --output json)
               SECURITY_GROUPS=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "${PROJECT_NAME}-core" --query "services[0].deployments[0].networkConfiguration.awsvpcConfiguration.securityGroups" --output json)
-              MIGRATE_OVERRIDES=$(jq -n --arg img "${ECR_REGISTRY}/${PROJECT_NAME}-core:${IMAGE_TAG}" '{containerOverrides:[{name:"core", image:$img, command:["python","manage.py","migrate","--noinput"]}]}')
+              MIGRATE_OVERRIDES=$(jq -n '{containerOverrides:[{name:"core", command:["python","manage.py","migrate","--noinput"]}]}')
               NETWORK_CONFIG=$(jq -n --argjson subs "$SUBNETS" --argjson sgs "$SECURITY_GROUPS" '{awsvpcConfiguration:{subnets:$subs,securityGroups:$sgs,assignPublicIp:"ENABLED"}}')
 
               MIGRATE_TASK_ARN=$(aws ecs run-task \
