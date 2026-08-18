@@ -42,10 +42,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Self-hosted third-party binaries
-frontend/public/stockfish/*
-!frontend/public/stockfish/.gitkeep
-
 # Docker / local data
 *.log
 tmp/
@@ -60,6 +56,8 @@ services/core/media/
 
 # Terraform
 .terraform/
+*.tfstate
+*.tfstate.*
 
 # Python service artifacts
 .pytest_cache/
