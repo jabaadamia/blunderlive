@@ -90,7 +90,7 @@ export function useGameWebSocket(gameId: string): UseGameWebSocketResult {
       userIdRef.current = getTokenUserId(token);
 
       const base = wsBaseUrl();
-      const url = `${base}/ws/games/${gameId}/ws`;
+      const url = `${base}/api/game/games/${gameId}/ws`;
       ws = new WebSocket(url, [
         WS_APP_SUBPROTOCOL,
         `${WS_BEARER_SUBPROTOCOL_PREFIX}${token}`,

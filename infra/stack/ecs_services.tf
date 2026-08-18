@@ -110,7 +110,6 @@ resource "aws_ecs_service" "core" {
   service_registries {
     registry_arn   = aws_service_discovery_service.core.arn
     container_name = "core"
-    container_port = 8000
   }
 
   depends_on = [aws_lb_listener.http, aws_db_instance.postgres, aws_elasticache_cluster.redis]
@@ -291,7 +290,6 @@ resource "aws_ecs_service" "game" {
   service_registries {
     registry_arn   = aws_service_discovery_service.game.arn
     container_name = "game"
-    container_port = 8005
   }
 
   depends_on = [aws_lb_listener.http, aws_elasticache_cluster.redis]
