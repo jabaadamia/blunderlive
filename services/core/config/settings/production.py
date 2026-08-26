@@ -25,6 +25,7 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env_bool("CORE_SECURE_COOKIES", False)  # type: ignore[name-defined]
 CSRF_COOKIE_SECURE = env_bool("CORE_SECURE_COOKIES", False)  # type: ignore[name-defined]
+REFRESH_COOKIE_SECURE = env_bool("CORE_SECURE_COOKIES", False)  # type: ignore[name-defined]
 SECURE_SSL_REDIRECT = env_bool("CORE_SECURE_SSL_REDIRECT", False)  # type: ignore[name-defined]
 SECURE_HSTS_SECONDS = int(os.environ.get("CORE_SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(  # type: ignore[name-defined]

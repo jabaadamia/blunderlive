@@ -6,7 +6,7 @@ def set_refresh_cookie(response, refresh_token):
         key="refresh",
         value=str(refresh_token),
         httponly=True,
-        secure=not settings.DEBUG, # type: ignore
+        secure=settings.REFRESH_COOKIE_SECURE, # type: ignore
         samesite="Lax",
         path="/api/auth/",
         max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()), # type: ignore

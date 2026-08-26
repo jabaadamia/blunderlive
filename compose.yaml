@@ -223,6 +223,7 @@ services:
       NEXT_PUBLIC_GAME_API_BASE_URL: ${NEXT_PUBLIC_GAME_API_BASE_URL:-/api/game}
       INTERNAL_CORE_URL: ${INTERNAL_CORE_URL:-http://core:8000}
       INTERNAL_GAME_URL: ${INTERNAL_GAME_URL:-http://game:8005}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-False}
     expose:
       - "3000"
     depends_on:

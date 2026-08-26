@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 const INTERNAL_CORE_URL = process.env.INTERNAL_CORE_URL ?? "http://core:8000";
+const COOKIE_SECURE = process.env.AUTH_COOKIE_SECURE === "true";
 
 type AuthProxySuccess<T> = {
   ok: true;
@@ -62,7 +63,7 @@ export function applyRefreshCookie(response: NextResponse, setCookieHeader: stri
     value,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     path: "/auth-api/",
     ...(typeof maxAge === "number" ? { maxAge } : {}),
   });
@@ -74,7 +75,7 @@ export function clearRefreshCookie(response: NextResponse) {
     value: "",
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     path: "/auth-api/",
     maxAge: 0,
   });

@@ -405,7 +405,8 @@ resource "aws_ecs_task_definition" "frontend" {
         { name = "PORT", value = "3000" },
         { name = "HOSTNAME", value = "0.0.0.0" },
         { name = "INTERNAL_CORE_URL", value = "http://core.${aws_service_discovery_private_dns_namespace.main.name}:8000" },
-        { name = "INTERNAL_GAME_URL", value = "http://game.${aws_service_discovery_private_dns_namespace.main.name}:8005" }
+        { name = "INTERNAL_GAME_URL", value = "http://game.${aws_service_discovery_private_dns_namespace.main.name}:8005" },
+        { name = "AUTH_COOKIE_SECURE", value = "false" }
       ]
 
       logConfiguration = {
