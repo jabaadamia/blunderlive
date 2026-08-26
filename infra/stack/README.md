@@ -1,71 +1,94 @@
-# Running Stack Infrastructure (`infra/stack/`)
+# Runtime Stack (`infra/stack/`)
 
-This directory contains the ephemeral runtime infrastructure for BlunderLive. It can be applied when needed and destroyed when idle to minimize costs.
+Ephemeral AWS infrastructure for the hosted BlunderLive deployment. Nothing here bills by the hour once it's gone.
 
-## Resources Provisioned
-- **VPC & Subnets**: 2 Public Subnets (ALB, ECS Fargate tasks with public IPs), 2 Isolated Subnets (RDS, Redis). **Zero NAT Gateways** to minimize cost.
-- **RDS Postgres**: Single-AZ `db.t4g.micro` (credit-billed ARM; no legacy free tier on this account). `skip_final_snapshot = true` and `deletion_protection = false` for zero-cost destroys.
-- **ElastiCache Redis**: Single-node `cache.t4g.micro` (Redis 7.1).
-- **Application Load Balancer (ALB)**:
-  - `/ws/*` $\rightarrow$ `game` service (with long timeout for WebSockets)
-  - `/api/game/*` $\rightarrow$ `game` service
-  - `/api/*` $\rightarrow$ `core` service
-  - `/*` $\rightarrow$ `frontend` service
-- **ECS Service Connect**: Internal DNS namespace (`blunderlive.local`) enabling seamless service discovery for `frontend` $\rightarrow$ `core`/`game` and `game` $\rightarrow$ `core`.
-- **5 ECS Fargate Services**: `frontend`, `core`, `core-worker`, `game`, `game-worker` (all 0.25 vCPU, 0.5 GB).
+## What it provisions
 
-## Prerequisites Before First Apply
-1. `infra/persistent/` applied (S3 state bucket, DynamoDB lock table, ECR repositories created).
-2. Docker images built and pushed to ECR (or via GitHub Actions CI/CD).
-3. Secret values populated in AWS SSM Parameter Store under `/${PROJECT_NAME}/production/*`.
+- **VPC & subnets** — 2 public subnets (ALB, Fargate tasks with public IPs), 2 isolated subnets (RDS, Redis). No NAT gateway, so no NAT cost.
+- **RDS PostgreSQL** — single-AZ `db.t4g.micro`, `skip_final_snapshot = true`, `deletion_protection = false`, so destroys are clean and free.
+- **ElastiCache Redis** — single-node `cache.t4g.micro` (Redis 7.1).
+- **Application Load Balancer**, routed by path:
 
-## How to Operate
+  | Path | Target |
+  | --- | --- |
+  | `/ws`, `/ws/*` | `game` (kept for WebSocket upgrades; unused by the current frontend) |
+  | `/api/game/*` | `game` - REST and WebSocket, e.g. `/api/game/games/{id}/ws` |
+  | `/api/*` | `core` |
+  | `/*` | `frontend` |
 
-### 1. Launching the stack
+  The ALB can't rewrite paths, so frontend and server routes are kept aligned instead.
+- **Cloud Map service discovery** — private namespace `blunderlive.local`, with A-records re-registered automatically as tasks start and stop. Services find each other as `core.blunderlive.local:8000` and `game.blunderlive.local:8005`.
+- **5 Fargate services** (0.25 vCPU / 0.5 GB each): `frontend`, `core`, `core-worker`, `game`, `game-worker`.
+
+## Prerequisites
+
+1. `infra/persistent/` already applied (S3 state bucket, ECR repos, OIDC deploy role, SSM secret skeletons)
+2. Images built and pushed to ECR (locally or via the GitHub Actions workflow)
+3. Secrets populated in SSM Parameter Store under `/${PROJECT_NAME}/production/*`
+
+## First apply
+
 ```bash
 cd infra/stack
 terraform init
-terraform plan
 terraform apply
+terraform output alb_dns_name
 ```
 
-### 2. First-time database migrations (bootstrap)
+## Bootstrapping the database (first apply only)
 
-Migrations are **not** part of the core container's start command — they run as a one-off ECS task from CI on every deploy (see `.github/workflows/deploy.yml`). On the very **first** `terraform apply` the CI deploy job skips (`ECS Cluster ... is not currently active`), so `core` starts with an empty schema and nothing migrates it. Run them once manually before testing the site:
+Migrations aren't part of the core container's start command - CI runs them as a one-off ECS task on every deploy (`.github/workflows/deploy.yml`). On the very first `terraform apply` the cluster isn't active yet, so CI's deploy job skips, and `core` comes up with an empty schema. Run migrations once by hand:
 
 ```bash
 cd infra/stack
 CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
-SUBNETS=$(terraform output -json ecs_subnet_ids | jq -r 'join(",")')
-SECURITY_GROUPS=$(terraform output -raw ecs_security_group_id)
+
+NETWORK_CONFIG=$(jq -n \
+  --argjson subnets "$(terraform output -json ecs_subnet_ids)" \
+  --arg group "$(terraform output -raw ecs_security_group_id)" \
+  '{awsvpcConfiguration:{subnets:$subnets,securityGroups:[$group],assignPublicIp:"ENABLED"}}')
 
 aws ecs run-task \
   --cluster "$CLUSTER_NAME" \
   --task-definition blunderlive-core \
   --launch-type FARGATE \
   --count 1 \
-  --overrides '{"containerOverrides":[{"name":"core","command":["python","manage.py","migrate","--noinput"]}]}' \
-  --network-configuration "awsvpcConfiguration={subnets=$SUBNETS,securityGroups=$SECURITY_GROUPS,assignPublicIp=ENABLED}"
+  --network-configuration "$NETWORK_CONFIG" \
+  --overrides '{"containerOverrides":[{"name":"core","command":["python","manage.py","migrate","--noinput"]}]}'
 ```
 
-`--task-definition blunderlive-core` resolves to the latest revision Terraform registered (the `latest` image tag). Note the command override — without it the task would run the container's default start command (collectstatic + gunicorn) and never stop. If you want a specific build instead of `latest`, add `"image":"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/blunderlive-core:sha-<sha>"` to the `containerOverrides` entry.
+Use the JSON `--network-configuration` form above - the `awsvpcConfiguration={subnets=...,...}` shorthand breaks once subnets are comma-joined.
 
-The `run-task` output prints the task ARN; poll it and confirm `exitCode == 0` before testing the site:
+`--task-definition blunderlive-core` resolves to whatever revision Terraform just registered (the `latest` tag). The command override matters: without it the task runs the container's default command (collectstatic + gunicorn) and never exits. To pin a specific build instead of `latest`, add `"image":"${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/blunderlive-core:sha-<sha>"` to the override.
+
+Poll until the task stops, then check its exit code — `0` means the schema's ready, anything else means migrations failed and the site isn't ready to test:
 
 ```bash
-TASK_ARN="arn:aws:ecs:...:task/blunderlive-cluster/...\"  # substitute from run-task output
-aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks "$TASK_ARN" --query "tasks[0].lastStatus"
-aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks "$TASK_ARN" --query "tasks[0].containers[0].exitCode"
+TASK_ARN="arn:aws:ecs:us-east-1:...:task/<cluster>/<id>"   # from run-task output
+aws ecs describe-tasks --cluster "$CLUSTER_NAME" --tasks "$TASK_ARN" \
+  --query "tasks[0].containers[0].exitCode"
 ```
 
-Wait until `lastStatus` is `STOPPED`; a non-zero `exitCode` means migrations failed and the site should not be tested yet.
+## Later deploys
 
-### 3. Destroying the stack (stops all hourly billing)
+Push to `main` (or an empty commit). The workflow rebuilds images, runs the migrate one-off, and updates each service — no manual steps.
+
+## Destroy (stops hourly billing)
+
 ```bash
 cd infra/stack
 terraform destroy
 ```
 
+State lives in the S3 bucket owned by `infra/persistent/`, so re-applying later is safe. The database comes back empty - repeat the bootstrap step, then let the next CI deploy migrate and update services to pinned images.
+
+## Verifying a deploy
+
+- Open `terraform output alb_dns_name` and register a user (the ALB endpoint works over plain HTTP).
+- Matchmaking: the game service should log a `200` for the WebSocket after pairing - a `403` means the connection got closed before accept, usually a client/server WS path mismatch.
+- Stockfish: `GET /stockfish/...js` on the frontend should return `200`.
+
 ## Known trade-offs
 
-- **CI/Terraform task-definition drift**: the deploy workflow re-registers task definition revisions with only the container image changed, independent of Terraform (`.github/workflows/deploy.yml`). If `infra/stack/ecs_services.tf` is edited to change environment variables, secrets, or other container config, those changes will **not** reach running services until the next `terraform apply` — a CI deploy in between runs on the stale env/secrets config with a newer image. Accepted at this project's scale; do not regenerate container definitions from Terraform in CI.
+- **CI/Terraform task-definition drift** - the deploy workflow re-registers task definitions with only the container image changed, independent of Terraform. Edit environment variables, secrets, or container config in `infra/stack/ecs_services.tf`, and those changes won't reach running services until the next `terraform apply` - a CI deploy in between would run a newer image against the stale env/secrets config. Fine at this project's scale; don't try to regenerate container definitions from Terraform in CI.
+- **HTTP only** - the hosted stack serves plain HTTP, no HTTPS listener or certificate. Refresh cookies are set non-secure to match. Add a certificate (and flip the cookie `Secure` flags) before going to HTTPS.
