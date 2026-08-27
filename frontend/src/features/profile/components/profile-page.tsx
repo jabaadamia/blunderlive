@@ -82,12 +82,11 @@ function getScoreColor(score: string) {
   return "text-neutral-500 dark:text-neutral-400";
 }
 
-function formatChartDate(dateStr: string) {
-  const [year, month, day] = dateStr.split("-").map(Number);
+function formatChartDate(ts: number) {
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
-  }).format(new Date(year, month - 1, day));
+  }).format(new Date(ts));
 }
 
 function toDateKey(isoString: string) {
@@ -109,8 +108,8 @@ function RatingChart({ history }: { history: RatingHistoryEntry[] }) {
       byDay.set(toDateKey(entry.created_at), entry.new_value);
     }
 
-    return Array.from(byDay.entries()).map(([dateKey, rating]) => ({
-      date: formatChartDate(dateKey),
+    return Array.from(byDay.entries()).map(([dayKey, rating]) => ({
+      ts: new Date(`${dayKey}T00:00:00`).getTime(),
       rating,
     }));
   }, [history]);
@@ -133,7 +132,11 @@ function RatingChart({ history }: { history: RatingHistoryEntry[] }) {
             opacity={0.08}
           />
           <XAxis
-            dataKey="date"
+            dataKey="ts"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={(v) => formatChartDate(Number(v))}
             tick={{ fontSize: 11, fill: "var(--color-foreground)", opacity: 0.5 }}
             tickLine={false}
             axisLine={false}
@@ -145,6 +148,7 @@ function RatingChart({ history }: { history: RatingHistoryEntry[] }) {
             axisLine={false}
           />
           <Tooltip
+            labelFormatter={(label) => formatChartDate(Number(label))}
             contentStyle={{
               backgroundColor: "var(--color-background)",
               border: "1px solid var(--color-foreground)",
@@ -322,10 +326,10 @@ export function ProfilePage({ userId }: ProfilePageProps) {
   const selectedRating = ratings.find(
     (rating) => rating.category === selectedCategory,
   );
-  
+
   const resolvedUsername = user?.id === userId ? user.username : inferredUsername;
   const displayName = resolvedUsername ?? `User ${userId.slice(0, 8)}`;
-  
+
   const categoryButtons = RATING_CATEGORIES.filter((category) =>
     ratings.some((rating) => rating.category === category),
   );
@@ -365,22 +369,20 @@ export function ProfilePage({ userId }: ProfilePageProps) {
                 key={category}
                 type="button"
                 onClick={() => setSelectedCategory(category)}
-                className={`flex flex-col items-center rounded-lg px-5 py-3 text-center transition ${
-                  isActive
+                className={`flex flex-col items-center rounded-lg px-5 py-3 text-center transition ${isActive
                     ? "bg-amber-500 text-white shadow-md shadow-amber-500/25"
                     : "bg-surface-muted text-ink-secondary hover:bg-surface-strong"
-                }`}
+                  }`}
               >
                 <span className="text-sm font-bold uppercase tracking-wide capitalize">
                   {formatCategory(category)}
                 </span>
                 {ratingForCategory && (
                   <span
-                    className={`mt-0.5 text-lg font-semibold tabular-nums ${
-                      isActive
+                    className={`mt-0.5 text-lg font-semibold tabular-nums ${isActive
                         ? "text-white/90"
                         : "text-ink"
-                    }`}
+                      }`}
                   >
                     {ratingForCategory.value}
                   </span>
