@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/providers/auth-provider";
@@ -21,8 +22,9 @@ export function SiteNav() {
       <div className="flex items-center gap-4">
         <Link
           href="/"
-          className="text-lg font-bold text-ink transition hover:text-ink-secondary dark:text-ink dark:hover:text-ink-secondary"
+          className="flex items-center gap-2 text-lg font-bold text-ink transition hover:text-ink-secondary dark:text-ink dark:hover:text-ink-secondary"
         >
+          <Image src="/logo_no_bg.png" alt="BlunderLive" width={1312} height={1199} className="h-10 w-auto" priority />
           Blunderlive
         </Link>
         <Link
